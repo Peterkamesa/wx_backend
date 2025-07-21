@@ -62,13 +62,17 @@ app.use('/api/', limiter);
 // Other Middleware
 app.use(morgan('dev'));
 
+app.set('trust proxy', true); // Enable proxy trust first!
+
 app.use((req, res, next) => {
-  if (!req.secure && req.get('x-forwarded-proto') !== 'https' && process.env.NODE_ENV === 'production') {
-    return res.redirect('https://' + req.get('host') + req.url);
+  const isProduction = process.env.NODE_ENV === 'production';
+  const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+
+  if (isProduction && !isSecure) {
+    return res.redirect(`https://${req.headers.host}${req.url}`);
   }
   next();
 });
-
 // report models(report.js)
 const Report = require('./models/report');
 
