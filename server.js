@@ -7,6 +7,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
+const jwt = require('jsonwebtoken'); 
 
 
 const app = express();
@@ -87,6 +88,37 @@ const transporter = nodemailer.createTransport({
   connectionTimeout: 30000, // Increase timeout to 30 seconds
   greetingTimeout: 30000,
   socketTimeout: 30000
+});
+
+const stations = [
+    {name: "Mab-Met", number: "63739"},
+    {name: "Dagoretti", number: "63741"},
+    {name: "JKIA", number: "63740"},
+    {name: "Wilson", number: "63742"}
+]
+
+app.post('/api/login', async (req, res) => {
+    const {station, password } = req.body
+
+    //finding the selected station
+    const selectedStation = station.find(s => s.name.toLowerCase() === station.toLowerCase());
+    if (!selectedStation) {
+        return res.status(401).json({message: 'Invalid station' });
+    }
+    //checking password if it matches
+    const expectedPassword = selectedStation.name.toLowerCase() + selectedStation.number;
+    if (password !== expectedPassword) {
+        return res.status(401).json({
+            message: 'Invalid credentials'
+        });
+    }
+    
+    //creating token
+    const token = jwt.sign({
+        station : selectedStation.name,
+        stationNumber: selectedStation.number
+    }, SECRET_KEY, {expiresIn: '1h'});
+    res.json({token});
 });
 
 // GET all METAR reports
