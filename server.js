@@ -118,6 +118,7 @@ app.post('/api/login', async (req, res) => {
         });
     }
     
+    const SECRET_KEY = process.env.JWT_SECRET;
     //creating token
     const token = jwt.sign({
         station : selectedStation.name,
