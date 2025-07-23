@@ -97,10 +97,10 @@ const transporter = nodemailer.createTransport({
 
 // Station model (no need to store in DB since we have fixed stations)
 const predefinedStations = [
-    {name: "Mab-Met", number: "63739", password: "Mab-Met63739"},
-    {name: "Dagoretti", number: "63741", password: "Dagoretti63741"},
-    {name: "JKIA", number: "63740", password: "JKIA63740"},
-    {name: "Wilson", number: "63742", password: "Wilson63742"}
+    {name: "Mab-Met", number: "63739", password: "mab-met63739"},
+    {name: "Dagoretti", number: "63741", password: "dagoretti63741"},
+    {name: "JKIA", number: "63740", password: "jkia63740"},
+    {name: "Wilson", number: "63742", password: "wilson63742"}
 ];
 
 // Modified login route
@@ -143,6 +143,7 @@ app.post('/api/login', async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 });
+
 // GET all METAR reports
 app.get('/api/reports/METAR', async (req, res) => {
     try {
