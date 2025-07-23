@@ -103,28 +103,37 @@ const stations = [
 ]
 
 app.post('/api/login', async (req, res) => {
-    const {station, password } = req.body
+    const { station: stationName, password } = req.body;
 
-    //finding the selected station
-    const selectedStation = station.find(s => s.name.toLowerCase() === station.toLowerCase());
+    // 1. Find the selected station - use the stations array
+    const selectedStation = stations.find(s => s.name.toLowerCase() === stationName.toLowerCase());
+    
     if (!selectedStation) {
-        return res.status(401).json({message: 'Invalid station' });
+        return res.status(401).json({ message: 'Invalid station' });
     }
-    //checking password if it matches
+
+    // 2. Check password - compare with expected format
     const expectedPassword = selectedStation.name.toLowerCase() + selectedStation.number;
+    
     if (password !== expectedPassword) {
         return res.status(401).json({
             message: 'Invalid credentials'
         });
     }
     
+    // 3. Create token - ensure SECRET_KEY is in .env
     const SECRET_KEY = process.env.JWT_SECRET;
-    //creating token
+    if (!SECRET_KEY) {
+        console.error('JWT_SECRET is not set in environment variables');
+        return res.status(500).json({ message: 'Server configuration error' });
+    }
+
     const token = jwt.sign({
-        station : selectedStation.name,
+        station: selectedStation.name,
         stationNumber: selectedStation.number
-    }, SECRET_KEY, {expiresIn: '1h'});
-    res.json({token});
+    }, SECRET_KEY, { expiresIn: '1h' });
+    
+    res.json({ token });
 });
 
 // GET all METAR reports
