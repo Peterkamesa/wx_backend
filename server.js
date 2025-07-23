@@ -45,7 +45,7 @@ app.use(cors({
     'https://wxbackend-production.up.railway.app',
     'http://localhost:3001',
     'http://localhost:5502',
-    'http://127.0.0.1:5502'
+    'http://127.0.0.1:5500'
   ],
   methods: ['GET', 'POST', 'DELETE'],
   allowedHeaders: ['Content-Type']  // Important for API requests
