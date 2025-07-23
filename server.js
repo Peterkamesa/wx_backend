@@ -95,47 +95,54 @@ const transporter = nodemailer.createTransport({
   socketTimeout: 30000
 });
 
-const stations = [
-    {name: "Mab-Met", number: "63739"},
-    {name: "Dagoretti", number: "63741"},
-    {name: "JKIA", number: "63740"},
-    {name: "Wilson", number: "63742"}
-]
+// Station model (no need to store in DB since we have fixed stations)
+const predefinedStations = [
+    {name: "Mab-Met", number: "63739", password: "Mab-Met63739"},
+    {name: "Dagoretti", number: "63741", password: "Dagoretti63741"},
+    {name: "JKIA", number: "63740", password: "JKIA63740"},
+    {name: "Wilson", number: "63742", password: "Wilson63742"}
+];
 
+// Modified login route
 app.post('/api/login', async (req, res) => {
-    const { station: stationName, password } = req.body;
-
-    // 1. Find the selected station - use the stations array
-    const selectedStation = stations.find(s => s.name.toLowerCase() === stationName.toLowerCase());
-    
-    if (!selectedStation) {
-        return res.status(401).json({ message: 'Invalid station' });
-    }
-
-    // 2. Check password - compare with expected format
-    const expectedPassword = selectedStation.name.toLowerCase() + selectedStation.number;
-    
-    if (password !== expectedPassword) {
-        return res.status(401).json({
-            message: 'Invalid credentials'
+    try {
+        const { station, password } = req.body;
+        
+        // Validate input
+        if (!station || !password) {
+            return res.status(400).json({ message: 'Station name and password are required' });
+        }
+        
+        // Find station in predefined list
+        const stationData = predefinedStations.find(s => s.name === station);
+        if (!stationData) {
+            return res.status(401).json({ message: 'Invalid station' });
+        }
+        
+        // Check password (station name + number)
+        if (password !== stationData.password) {
+            return res.status(401).json({ message: 'Invalid password' });
+        }
+        
+        // Generate token
+        const token = jwt.sign(
+            { stationId: stationData.number, name: stationData.name },
+            process.env.JWT_SECRET || 'your_jwt_secret',
+            { expiresIn: '24h' }
+        );
+        
+        res.json({ 
+            token, 
+            station: { 
+                name: stationData.name, 
+                number: stationData.number 
+            } 
         });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ message: 'Server error' });
     }
-    
-    // 3. Create token - ensure SECRET_KEY is in .env
-    const SECRET_KEY = process.env.JWT_SECRET;
-    if (!SECRET_KEY) {
-        console.error('JWT_SECRET is not set in environment variables');
-        return res.status(500).json({ message: 'Server configuration error' });
-    }
-
-    const token = jwt.sign({
-        station: selectedStation.name,
-        stationNumber: selectedStation.number
-    }, SECRET_KEY, { expiresIn: '1h' });
-    
-    res.json({ token });
 });
-
 // GET all METAR reports
 app.get('/api/reports/METAR', async (req, res) => {
     try {
