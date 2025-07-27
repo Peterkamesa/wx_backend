@@ -144,6 +144,46 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// Contact Form Endpoint
+app.post('/api/contact', async (req, res) => {
+    try {
+        const { name, email, subject, message } = req.body;
+        
+        // Basic validation
+        if (!name || !email || !message) {
+            return res.status(400).json({ 
+                success: false,
+                message: 'Name, email, and message are required' 
+            });
+        }
+        
+        // Create new contact message using your Report schema
+        const newContact = new Report({
+            type: 'CONTACT',
+            name,
+            email,
+            subject,
+            message,
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent')
+        });
+        
+        await newContact.save();
+        
+        res.status(201).json({ 
+            success: true,
+            message: 'Thank you for your message! We will get back to you soon.' 
+        });
+    } catch (error) {
+        console.error('Error saving contact:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'An error occurred while sending your message' 
+        });
+    }
+});
+
+
 // GET all METAR reports
 app.get('/api/reports/METAR', async (req, res) => {
     try {
