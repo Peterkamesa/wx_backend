@@ -169,6 +169,37 @@ app.post('/api/contact', async (req, res) => {
         });
         
         await newContact.save();
+        // Send email notification
+    const mailOptions = {
+      from: process.env.EMAIL_USER, // Your email address
+      to: process.env.RECIPIENT_EMAIL, // Your email address
+      subject: `New Contact Form Submission: ${subject || 'No Subject'}`,
+      text: `
+        New contact form submission:
+        
+        Name: ${name}
+        Email: ${email}
+        Subject: ${subject || 'No Subject'}
+        Message: ${message}
+        
+        Received at: ${new Date().toLocaleString()}
+        IP Address: ${req.ip}
+      `,
+      html: `
+        <h1>New contact form submission</h1>
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Subject:</strong> ${subject || 'No Subject'}</p>
+        <p><strong>Message:</strong></p>
+        <p>${message}</p>
+        <hr>
+        <p><small>Received at: ${new Date().toLocaleString()}</small></p>
+        <p><small>IP Address: ${req.ip}</small></p>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+
         
         res.status(201).json({ 
             success: true,
@@ -183,6 +214,15 @@ app.post('/api/contact', async (req, res) => {
     }
 });
 
+// GET all contacts
+app.get('/api/contact', async (req, res) => {
+    try {
+        const reports = await Report.find({ type: 'CONTACT' }).sort({ createdAt: -1 });
+        res.json(reports);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
 
 // GET all METAR reports
 app.get('/api/reports/METAR', async (req, res) => {

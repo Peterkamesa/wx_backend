@@ -51,7 +51,7 @@ const reportSchema = new mongoose.Schema({
     userAgent: String
 });
 
-// Add indexes for better query performance
+// Adding indexes for better query performance
 reportSchema.index({ type: 1, createdAt: -1 });
 reportSchema.index({ email: 1, type: 1 });
 reportSchema.index({ status: 1 });
