@@ -44,7 +44,7 @@ app.use(cors({
     'https://peterkamesa.github.io',  // Remove trailing slash and path
     'https://wxbackend-production.up.railway.app',
     'http://localhost:3001',
-    'http://localhost:5502',
+    'http://127.0.0.1:5502',
     'http://127.0.0.1:5500'
   ],
   methods: ['GET', 'POST', 'DELETE'],
