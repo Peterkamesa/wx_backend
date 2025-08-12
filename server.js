@@ -157,7 +157,7 @@ app.post('/api/contact', async (req, res) => {
             });
         }
         
-        // Create new contact message using your Report schema
+        // Creating new contact message using my Report schema
         const newContact = new Report({
             type: 'CONTACT',
             name,
@@ -209,7 +209,7 @@ app.post('/api/contact', async (req, res) => {
         console.error('Error saving contact:', error);
         res.status(500).json({ 
             success: false,
-            message: 'An error occurred while sending your message' 
+            message: 'An error occurred while sending your message try again!' 
         });
     }
 });
