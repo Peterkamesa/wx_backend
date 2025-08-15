@@ -224,6 +224,29 @@ app.get('/api/contact', async (req, res) => {
     }
 });
 
+app.post('/api/sheets', async (req, res) => {
+  // Verify API key first
+  if (req.body.apiKey !== process.env.API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const { station, formType, sheetId } = req.body;
+    
+    // Save to MongoDB
+    const sheetRecord = new Sheet({
+      station,
+      formType,
+      sheetId,
+      createdAt: new Date()
+    });
+    
+    await sheetRecord.save();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 // GET all METAR reports
 app.get('/api/reports/METAR', async (req, res) => {
     try {
@@ -366,16 +389,75 @@ app.delete('/api/reports/clear/ACTUALS/:id', async (req, res) => {
 // API endpoint to submit and save a report
 app.post('/api/reports', async (req, res) => {
     try {
-        const{content, type} = req.body;
+        const{ content, type, sheetType, sheetId, sheetUrl, station, month } = req.body;
         const report = new Report({
             content,
             type,
+            sheetType: type === 'SHEET' ? sheetType : null,
+            sheetId,
+            sheetUrl,
+            station,
+            month
         });
         await report.save();
         res.status(201).json({ success: true, message: 'Report saved successfully' });
 
     } catch (error) {
         res.status(500).json({ error:'Error saving report', error: error.message });
+    }
+});
+
+// Get all sheet reports for a specific station
+app.get('/api/sheets/station/:stationId', async (req, res) => {
+    try {
+        const reports = await Report.find({ 
+            station: req.params.stationId,
+            sheetType: { $ne: null } // Only get sheet reports
+        }).sort({ createdAt: -1 });
+        
+        res.json(reports);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get reports by sheet type
+app.get('/api/sheets/type/:sheetType', async (req, res) => {
+    try {
+        const reports = await Report.find({ 
+            sheetType: req.params.sheetType 
+        }).sort({ createdAt: -1 });
+        
+        res.json(reports);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update sheet URL or metadata
+app.patch('/api/sheets/:id', async (req, res) => {
+    try {
+        const updates = Object.keys(req.body);
+        const allowedUpdates = ['sheetUrl', 'month', 'status'];
+        const isValidOperation = updates.every(update => allowedUpdates.includes(update));
+        
+        if (!isValidOperation) {
+            return res.status(400).json({ error: 'Invalid updates!' });
+        }
+        
+        const report = await Report.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            { new: true, runValidators: true }
+        );
+        
+        if (!report) {
+            return res.status(404).json({ error: 'Report not found' });
+        }
+        
+        res.json(report);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
     }
 });
 
