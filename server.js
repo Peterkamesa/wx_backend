@@ -7,7 +7,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
-const jwt = require('jsonwebtoken'); 
+const jwt = require('jsonwebtoken');
+const { google } = require('googleapis'); 
 
 
 const app = express();
@@ -35,6 +36,14 @@ requiredEnvVars.forEach(varName => {
     process.exit(1);
   }
 });
+
+// Configure Google Auth
+const sheetsAuth = new google.auth.JWT(
+  process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+  null,
+  process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+  ['https://www.googleapis.com/auth/drive']
+);
 
 // Security Middleware
 app.use(helmet());
@@ -459,6 +468,109 @@ app.patch('/api/sheets/:id', async (req, res) => {
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
+});
+
+// server.js - Add these new routes
+
+// Get station-specific C/SHEET
+app.get('/api/sheets/csheet', authenticate, async (req, res) => {
+  try {
+    const station = req.query.station || req.user.stationName;
+    
+    // Verify station access
+    if (req.user.role === 'station' && req.user.stationName !== station) {
+      return res.status(403).json({ error: 'Access denied to this station' });
+    }
+    
+    // Find the sheet in database
+    const sheet = await Report.findOne({
+      sheetType: 'CSHEET',
+      station: station
+    }).sort({ createdAt: -1 });
+    
+    if (!sheet) {
+      // Create a new copy if doesn't exist
+      const newSheet = await createNewSheetCopy('CSHEET', station);
+      return res.json(newSheet);
+    }
+    
+    res.json(sheet);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper function to create new sheet copies
+async function createNewSheetCopy(sheetType, station) {
+  const templateIds = {
+    'FORM626': '13rvm1nltX1Gteu4N4qj13LpGPYYz2EUs7eEOEZwbzuo',
+    'CSHEET': '1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ',
+    'FORM446': '1GBhOZBzNZNNtrGP5jVgjnSbLou4daP6Gw5EnRS_diUE',
+    'WX_SUMMARY': '1xo2b0cLtw7wZhEy3ZdkFDIIhz4ZeA0cO'
+  };
+  
+  // Use Google Drive API to make a copy
+  const { google } = require('googleapis');
+  const drive = google.drive({ version: 'v3', auth: sheetsAuth });
+  
+  const copyResponse = await drive.files.copy({
+    fileId: templateIds[sheetType],
+    requestBody: {
+      name: `${station} - ${sheetType}`,
+      parents: ['YOUR_FOLDER_ID'] // Optional
+    }
+  });
+  
+  // Set permissions
+  await drive.permissions.create({
+    fileId: copyResponse.data.id,
+    requestBody: {
+      role: 'writer',
+      type: 'user',
+      emailAddress: `${station.toLowerCase()}@yourdomain.com` // Station email
+    }
+  });
+  
+  // Save to our database
+  const sheetUrl = `https://docs.google.com/spreadsheets/d/${copyResponse.data.id}/edit`;
+  
+  const report = new Report({
+    type: 'SHEET',
+    sheetType,
+    sheetId: copyResponse.data.id,
+    sheetUrl,
+    station,
+    status: 'ACTIVE'
+  });
+  
+  await report.save();
+  return report;
+}
+
+app.post('/api/sheets/save', authenticate, async (req, res) => {
+  try {
+    const { station, sheetType, sheetId } = req.body;
+    
+    // Verify ownership
+    const existing = await Report.findOne({
+      sheetId,
+      station,
+      sheetType
+    });
+    
+    if (!existing) {
+      return res.status(403).json({ error: 'Not authorized to save this sheet' });
+    }
+    
+    // Update the record
+    existing.updatedAt = new Date();
+    await existing.save();
+    
+    res.json({ success: true });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 //sending report via email
