@@ -59,8 +59,8 @@ app.use(cors({
     'https://www.googleapis.com',
     'http://127.0.0.1:5500'
   ],
-  methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-  allowedHeaders: ['Content-Type']  // Important for API requests
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
+  allowedHeaders: ['Authorization, Content-Type']  // Important for API requests
 }));
 
 // Rate limiting
