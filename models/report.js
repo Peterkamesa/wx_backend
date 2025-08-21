@@ -86,6 +86,7 @@ reportSchema.index({ status: 1 });
 reportSchema.index({ sheetId: 1 });
 reportSchema.index({ station: 1, sheetType: 1 });
 reportSchema.index({ sheetType: 1, month: 1 });
+
 // Pre-save hook for additional processing
 reportSchema.pre('save', function(next) {
     if (this.type === 'CONTACT') {

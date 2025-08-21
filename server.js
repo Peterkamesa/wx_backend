@@ -29,7 +29,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 });
 
 // Validate required environment variables
-const requiredEnvVars = ['EMAIL_USER', 'EMAIL_PASS', 'MONGODB_URI', 'PORT', 'RECIPIENT_EMAIL'];
+const requiredEnvVars = ['EMAIL_USER', 'EMAIL_PASS', 'MONGODB_URI', 'PORT', 'RECIPIENT_EMAIL', 'JWT_SECRET'];
 requiredEnvVars.forEach(varName => {
   if (!process.env[varName]) {
     console.error(`Missing required environment variable: rater${varName}`);
@@ -50,7 +50,7 @@ app.use(helmet());
 
 app.use(cors({
   origin: [
-    'https://peterkamesa.github.io',  // Remove trailing slash and path
+    'https://peterkamesa.github.io',
     'https://wxbackend-production.up.railway.app',
     'http://localhost:3001',
     'http://127.0.0.1:5502',
@@ -251,7 +251,7 @@ app.get('/api/contact', async (req, res) => {
     }
 });
 
-app.post('/api/sheets', async (req, res) => {
+app.post('/api/reports/sheets', async (req, res) => {
   // Verify API key first
   if (req.body.apiKey !== process.env.API_KEY) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -435,7 +435,7 @@ app.post('/api/reports', async (req, res) => {
 });
 
 // Get all sheet reports for a specific station
-app.get('/api/sheets/station/:stationId', async (req, res) => {
+app.get('/api/reports/sheets/station/:stationId', async (req, res) => {
     try {
         const reports = await Report.find({ 
             station: req.params.stationId,
@@ -449,7 +449,7 @@ app.get('/api/sheets/station/:stationId', async (req, res) => {
 });
 
 // Get reports by sheet type
-app.get('/api/sheets/type/:sheetType', async (req, res) => {
+app.get('/api/reports/sheets/type/:sheetType', async (req, res) => {
     try {
         const reports = await Report.find({ 
             sheetType: req.params.sheetType 
@@ -462,7 +462,7 @@ app.get('/api/sheets/type/:sheetType', async (req, res) => {
 });
 
 // Update sheet URL or metadata
-app.patch('/api/sheets/:id', async (req, res) => {
+app.patch('/api/reports/sheets/:id', async (req, res) => {
     try {
         const updates = Object.keys(req.body);
         const allowedUpdates = ['sheetUrl', 'month', 'status'];
@@ -491,7 +491,7 @@ app.patch('/api/sheets/:id', async (req, res) => {
 // server.js - Add these new routes
 
 // Get station-specific C/SHEET
-app.get('/api/sheets/csheet', authenticate, async (req, res) => {
+app.get('/api/reports/sheets/csheet', authenticate, async (req, res) => {
   try {
     const station = req.query.station || req.user.stationName;
     
@@ -527,8 +527,7 @@ async function createNewSheetCopy(sheetType, station) {
     'WX_SUMMARY': '1xo2b0cLtw7wZhEy3ZdkFDIIhz4ZeA0cO'
   };
   
-  // Use Google Drive API to make a copy
-  const { google } = require('googleapis');
+  // Use Google Drive API to make a copys
   const drive = google.drive({ version: 'v3', auth: sheetsAuth });
   
   const copyResponse = await drive.files.copy({
@@ -544,8 +543,8 @@ async function createNewSheetCopy(sheetType, station) {
     fileId: copyResponse.data.id,
     requestBody: {
       role: 'writer',
-      type: 'user',
-      emailAddress: `${station.toLowerCase()}@yourdomain.com` // Station email
+      type: 'anyone',
+      // emailAddress: `${station.toLowerCase()}@yourdom.com` // Station email
     }
   });
   
@@ -565,7 +564,7 @@ async function createNewSheetCopy(sheetType, station) {
   return report;
 }
 
-app.post('/api/sheets/save', authenticate, async (req, res) => {
+app.post('/api/reports/sheets/save', authenticate, async (req, res) => {
   try {
     const { station, sheetType, sheetId } = req.body;
     
