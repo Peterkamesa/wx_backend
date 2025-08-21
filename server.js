@@ -251,12 +251,12 @@ app.get('/api/contact', async (req, res) => {
     }
 });
 
-app.post('/api/reports/sheets', async (req, res) => {
+/*app.post('/api/reports/sheets', async (req, res) => {
   // Verify API key first
- /* if (req.body.apiKey !== process.env.API_KEY) {
+  if (req.body.apiKey !== process.env.API_KEY) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-    */
+    
 
   try {
     const { station, formType, sheetId } = req.body;
@@ -275,6 +275,7 @@ app.post('/api/reports/sheets', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+*/
 // GET all METAR reports
 app.get('/api/reports/METAR', async (req, res) => {
     try {
@@ -414,33 +415,12 @@ app.delete('/api/reports/clear/ACTUALS/:id', async (req, res) => {
     }
 });
 
-// API endpoint to submit and save a report
-app.post('/api/reports', async (req, res) => {
-    try {
-        const{ content, type, sheetType, sheetId, sheetUrl, station, month } = req.body;
-        const report = new Report({
-            content,
-            type,
-            sheetType: type === 'SHEET' ? sheetType : null,
-            sheetId,
-            sheetUrl,
-            station,
-            month
-        });
-        await report.save();
-        res.status(201).json({ success: true, message: 'Report saved successfully' });
-
-    } catch (error) {
-        res.status(500).json({ error:'Error saving report', error: error.message });
-    }
-});
-
 // Get all sheet reports for a specific station
 app.get('/api/reports/sheets/station/:stationId', async (req, res) => {
     try {
         const reports = await Report.find({ 
             station: req.params.stationId,
-            sheetType: { $ne: null } // Only get sheet reports
+            sheetType: { $ne: null }
         }).sort({ createdAt: -1 });
         
         res.json(reports);
@@ -462,43 +442,13 @@ app.get('/api/reports/sheets/type/:sheetType', async (req, res) => {
     }
 });
 
-// Update sheet URL or metadata
-app.patch('/api/reports/sheets/:id', async (req, res) => {
-    try {
-        const updates = Object.keys(req.body);
-        const allowedUpdates = ['sheetUrl', 'month', 'status'];
-        const isValidOperation = updates.every(update => allowedUpdates.includes(update));
-        
-        if (!isValidOperation) {
-            return res.status(400).json({ error: 'Invalid updates!' });
-        }
-        
-        const report = await Report.findByIdAndUpdate(
-            req.params.id,
-            req.body,
-            { new: true, runValidators: true }
-        );
-        
-        if (!report) {
-            return res.status(404).json({ error: 'Report not found' });
-        }
-        
-        res.json(report);
-    } catch (error) {
-        res.status(400).json({ error: error.message });
-    }
-});
-
-// server.js - Add these new routes
-
-// Get station-specific C/SHEET
+// Get station-specific C/SHEET (FIXED - no authentication)
 app.get('/api/reports/sheets/csheet', async (req, res) => {
   try {
-    const station = req.query.station || req.user.stationName;
+    const { station } = req.query;
     
-    // Verify station access
-    if (req.user.role === 'station' && req.user.stationName !== station) {
-      return res.status(403).json({ error: 'Access denied to this station' });
+    if (!station) {
+      return res.status(400).json({ error: 'Station parameter is required' });
     }
     
     // Find the sheet in database
@@ -509,12 +459,58 @@ app.get('/api/reports/sheets/csheet', async (req, res) => {
     
     if (!sheet) {
       // Create a new copy if doesn't exist
-      const newSheet = await createNewSheetCopy('CSHEET', station);
-      return res.json(newSheet);
+      try {
+        const newSheet = await createNewSheetCopy('CSHEET', station);
+        return res.json(newSheet);
+      } catch (error) {
+        console.error('Error creating new sheet:', error);
+        return res.status(500).json({ error: 'Failed to create new sheet' });
+      }
     }
     
     res.json(sheet);
   } catch (error) {
+    console.error('Error fetching sheet:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Save sheet endpoint (FIXED - no authentication)
+app.post('/api/reports/sheets/save', async (req, res) => {
+  try {
+    const { station, sheetType, sheetId } = req.body;
+    
+    if (!station || !sheetType || !sheetId) {
+      return res.status(400).json({ error: 'Station, sheetType, and sheetId are required' });
+    }
+    
+    // Find or create the record
+    let existing = await Report.findOne({
+      sheetId,
+      station,
+      sheetType
+    });
+    
+    if (!existing) {
+      // Create a new record if it doesn't exist
+      existing = new Report({
+        type: 'SHEET',
+        sheetType,
+        sheetId,
+        sheetUrl: `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
+        station,
+        status: 'ACTIVE'
+      });
+    }
+    
+    // Update the record
+    existing.updatedAt = new Date();
+    await existing.save();
+    
+    res.json({ success: true });
+    
+  } catch (error) {
+    console.error('Error saving sheet:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -528,28 +524,27 @@ async function createNewSheetCopy(sheetType, station) {
     'WX_SUMMARY': '1xo2b0cLtw7wZhEy3ZdkFDIIhz4ZeA0cO'
   };
   
-  // Use Google Drive API to make a copys
+  if (!sheetsAuth) {
+    throw new Error('Google Sheets authentication not configured');
+  }
+  
   const drive = google.drive({ version: 'v3', auth: sheetsAuth });
   
   const copyResponse = await drive.files.copy({
     fileId: templateIds[sheetType],
     requestBody: {
       name: `${station} - ${sheetType}`
-      // parents: ['YOUR_FOLDER_ID'] Optional
     }
   });
   
-  // Set permissions
   await drive.permissions.create({
     fileId: copyResponse.data.id,
     requestBody: {
       role: 'writer',
-      type: 'anyone',
-      // emailAddress: `${station.toLowerCase()}@yourdom.com` // Station email
+      type: 'anyone'
     }
   });
   
-  // Save to our database
   const sheetUrl = `https://docs.google.com/spreadsheets/d/${copyResponse.data.id}/edit`;
   
   const report = new Report({
@@ -565,31 +560,6 @@ async function createNewSheetCopy(sheetType, station) {
   return report;
 }
 
-app.post('/api/reports/sheets/save', async (req, res) => {
-  try {
-    const { station, sheetType, sheetId } = req.body;
-    
-    // Verify ownership
-    const existing = await Report.findOne({
-      sheetId,
-      station,
-      sheetType
-    });
-    
-    if (!existing) {
-      return res.status(403).json({ error: 'Not authorized to save this sheet' });
-    }
-    
-    // Update the record
-    existing.updatedAt = new Date();
-    await existing.save();
-    
-    res.json({ success: true });
-    
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 //sending report via email
 app.post('/api/send-report', async (req, res) => {
