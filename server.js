@@ -491,7 +491,7 @@ app.patch('/api/reports/sheets/:id', async (req, res) => {
 // server.js - Add these new routes
 
 // Get station-specific C/SHEET
-app.get('/api/reports/sheets/csheet', authenticate, async (req, res) => {
+app.get('/api/reports/sheets/csheet', async (req, res) => {
   try {
     const station = req.query.station || req.user.stationName;
     
@@ -533,8 +533,8 @@ async function createNewSheetCopy(sheetType, station) {
   const copyResponse = await drive.files.copy({
     fileId: templateIds[sheetType],
     requestBody: {
-      name: `${station} - ${sheetType}`,
-      parents: ['YOUR_FOLDER_ID'] // Optional
+      name: `${station} - ${sheetType}`
+      // parents: ['YOUR_FOLDER_ID'] Optional
     }
   });
   
@@ -564,7 +564,7 @@ async function createNewSheetCopy(sheetType, station) {
   return report;
 }
 
-app.post('/api/reports/sheets/save', authenticate, async (req, res) => {
+app.post('/api/reports/sheets/save', async (req, res) => {
   try {
     const { station, sheetType, sheetId } = req.body;
     
