@@ -426,7 +426,7 @@ app.post('/api/reports', async (req, res) => {
       content,
       type,
       station,
-      sheetType: type === 'SHEET' ? sheetType : null, // Only set sheetType if type is SHEET
+      sheetType,
       sheetId,
       sheetUrl,
       month,
