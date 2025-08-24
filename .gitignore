@@ -1,4 +1,21 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
 # Node modules
 node_modules/
 
-.env
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+.vscode/
+*.swp

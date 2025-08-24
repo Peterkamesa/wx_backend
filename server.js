@@ -37,14 +37,19 @@ requiredEnvVars.forEach(varName => {
   }
 });
 
-// Configure Google Auth
-const sheetsAuth = new google.auth.JWT(
-  process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-  null,
-  process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-  ['https://www.googleapis.com/auth/drive']
-);
-
+let sheetsAuth = null;
+try {
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
+    sheetsAuth = new google.auth.JWT(
+      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      null,
+      process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      ['https://www.googleapis.com/auth/drive']
+    );
+  }
+} catch (error) {
+  console.error('Google Auth initialization failed:', error);
+}
 // Security Middleware
 app.use(helmet());
 
@@ -253,30 +258,27 @@ app.get('/api/contact', async (req, res) => {
 
 
 app.post('/api/reports/sheets', async (req, res) => {
-  // Verify API key first
-  /*if (req.body.apiKey !== process.env.API_KEY) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }*/
-    
-
   try {
     const { station, formType, sheetId } = req.body;
     
-    // Save to MongoDB
-    const sheetRecord = new Sheet({
-      station,
-      formType,
+    // Use Report model instead of Sheet
+    const sheetRecord = new Report({
+      type: 'SHEET',
+      sheetType: formType,
       sheetId,
+      sheetUrl: `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
+      station,
+      status: 'ACTIVE',
       createdAt: new Date()
     });
     
     await sheetRecord.save();
     res.json({ success: true });
   } catch (err) {
+    console.error('Error saving sheet:', err);
     res.status(500).json({ error: err.message });
   }
 });
-
 // GET all METAR reports
 app.get('/api/reports/METAR', async (req, res) => {
     try {
@@ -465,7 +467,7 @@ app.get('/api/reports/sheets/type/:sheetType', async (req, res) => {
     }
 });
 
-// Get station-specific C/SHEET (FIXED - no authentication)
+// Get station-specific C/SHEET
 app.get('/api/reports/sheets/csheet', async (req, res) => {
   try {
     const { station } = req.query;
@@ -474,27 +476,40 @@ app.get('/api/reports/sheets/csheet', async (req, res) => {
       return res.status(400).json({ error: 'Station parameter is required' });
     }
     
+    console.log(`Fetching C/SHEET for station: ${station}`);
+    
     // Find the sheet in database
     const sheet = await Report.findOne({
       sheetType: 'CSHEET',
       station: station
     }).sort({ createdAt: -1 });
     
-    if (!sheet) {
-      // Create a new copy if doesn't exist
-      try {
-        const newSheet = await createNewSheetCopy('CSHEET', station);
-        return res.json(newSheet);
-      } catch (error) {
-        console.error('Error creating new sheet:', error);
-        return res.status(500).json({ error: 'Failed to create new sheet' });
-      }
+    if (sheet) {
+      console.log(`Found existing C/SHEET for ${station}: ${sheet.sheetId}`);
+      return res.json(sheet);
     }
     
-    res.json(sheet);
+    console.log(`No existing C/SHEET found for ${station}, creating new one...`);
+    
+    // Create a new copy if doesn't exist
+    try {
+      const newSheet = await createNewSheetCopy('CSHEET', station);
+      console.log(`Created new C/SHEET for ${station}: ${newSheet.sheetId}`);
+      return res.json(newSheet);
+    } catch (error) {
+      console.error('Error creating new sheet:', error);
+      return res.status(500).json({ 
+        error: 'Failed to create new sheet',
+        details: error.message 
+      });
+    }
+    
   } catch (error) {
-    console.error('Error fetching sheet:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error in C/SHEET endpoint:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message 
+    });
   }
 });
 
@@ -540,47 +555,57 @@ app.post('/api/reports/sheets/save', async (req, res) => {
 
 // Helper function to create new sheet copies
 async function createNewSheetCopy(sheetType, station) {
-  const templateIds = {
-    'FORM626': '13rvm1nltX1Gteu4N4qj13LpGPYYz2EUs7eEOEZwbzuo',
-    'CSHEET': '1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ',
-    'FORM446': '1GBhOZBzNZNNtrGP5jVgjnSbLou4daP6Gw5EnRS_diUE',
-    'WX_SUMMARY': '1xo2b0cLtw7wZhEy3ZdkFDIIhz4ZeA0cO'
-  };
-  
-  if (!sheetsAuth) {
-    throw new Error('Google Sheets authentication not configured');
+  try {
+    if (!sheetsAuth) {
+      throw new Error('Google Sheets authentication not configured');
+    }
+    
+    const templateIds = {
+      'FORM626': '13rvm1nltX1Gteu4N4qj13LpGPYYz2EUs7eEOEZwbzuo',
+      'CSHEET': '1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ',
+      'FORM446': '1GBhOZBzNZNNtrGP5jVgjnSbLou4daP6Gw5EnRS_diUE',
+      'WX_SUMMARY': '1xo2b0cLtw7wZhEy3ZdkFDIIhz4ZeA0cO'
+    };
+    
+    if (!templateIds[sheetType]) {
+      throw new Error(`Unknown sheet type: ${sheetType}`);
+    }
+    
+    const drive = google.drive({ version: 'v3', auth: sheetsAuth });
+    
+    const copyResponse = await drive.files.copy({
+      fileId: templateIds[sheetType],
+      requestBody: {
+        name: `${station} - ${sheetType} - ${new Date().toISOString().split('T')[0]}`
+      }
+    });
+    
+    await drive.permissions.create({
+      fileId: copyResponse.data.id,
+      requestBody: {
+        role: 'writer',
+        type: 'anyone'
+      }
+    });
+    
+    const sheetUrl = `https://docs.google.com/spreadsheets/d/${copyResponse.data.id}/edit`;
+    
+    const report = new Report({
+      type: 'SHEET',
+      sheetType,
+      sheetId: copyResponse.data.id,
+      sheetUrl,
+      station,
+      status: 'ACTIVE'
+    });
+    
+    await report.save();
+    return report;
+    
+  } catch (error) {
+    console.error('Error creating new sheet copy:', error);
+    throw error; // Re-throw to be handled by the caller
   }
-  
-  const drive = google.drive({ version: 'v3', auth: sheetsAuth });
-  
-  const copyResponse = await drive.files.copy({
-    fileId: templateIds[sheetType],
-    requestBody: {
-      name: `${station} - ${sheetType}`
-    }
-  });
-  
-  await drive.permissions.create({
-    fileId: copyResponse.data.id,
-    requestBody: {
-      role: 'writer',
-      type: 'anyone'
-    }
-  });
-  
-  const sheetUrl = `https://docs.google.com/spreadsheets/d/${copyResponse.data.id}/edit`;
-  
-  const report = new Report({
-    type: 'SHEET',
-    sheetType,
-    sheetId: copyResponse.data.id,
-    sheetUrl,
-    station,
-    status: 'ACTIVE'
-  });
-  
-  await report.save();
-  return report;
 }
 
 
