@@ -251,6 +251,7 @@ app.get('/api/contact', async (req, res) => {
     }
 });
 
+
 /*app.post('/api/reports/sheets', async (req, res) => {
   // Verify API key first
   if (req.body.apiKey !== process.env.API_KEY) {
@@ -413,6 +414,28 @@ app.delete('/api/reports/clear/ACTUALS/:id', async (req, res) => {
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
+});
+
+// api end point for saving reports
+app.post('/api/reports', async (req, res) => {
+  try{
+    const{ content, type, station, sheetType, sheetId, sheetUrl, month } = req.body;
+    const report = new Report({
+      content,
+      type,
+      station,
+      sheetType: type === 'SHEET' ? sheetType : null, // Only set sheetType if type is SHEET
+      sheetId,
+      sheetUrl,
+      month,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    })
+    await report.save();
+    res.status(201).json({ success: true, message: 'Report saved successfully'});
+  }catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to save report', error: error.message });
+  }
 });
 
 // Get all sheet reports for a specific station
