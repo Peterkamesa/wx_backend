@@ -535,7 +535,7 @@ app.post('/api/reports/sheets/save', async (req, res) => {
         type: 'SHEET',
         sheetType,
         sheetId,
-        sheetUrl: `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
+        sheetUrl: `https://docs.google.com/spreadsheets/d/1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ/edit`,
         station,
         status: 'ACTIVE'
       });
