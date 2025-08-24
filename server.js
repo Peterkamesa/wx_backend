@@ -43,7 +43,7 @@ try {
     sheetsAuth = new google.auth.JWT(
       process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
       null,
-      process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n') || process.env.GOOGLE_PRIVATE_KEY,
       ['https://www.googleapis.com/auth/drive']
     );
   }
