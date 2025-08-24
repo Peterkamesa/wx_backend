@@ -162,7 +162,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 // Authentication Middleware
-const authenticate = (req, res, next) => {
+/*const authenticate = (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     if (!token) throw new Error();
@@ -174,7 +174,7 @@ const authenticate = (req, res, next) => {
     res.status(401).send({ error: 'Please authenticate' });
   }
 };
-
+*/
 
 // Contact Form Endpoint
 app.post('/api/contact', async (req, res) => {
@@ -257,7 +257,7 @@ app.get('/api/contact', async (req, res) => {
 });
 
 
-app.post('/api/reports/sheets', async (req, res) => {
+app.post('/api/sheets', async (req, res) => {
   try {
     const { station, formType, sheetId } = req.body;
     
@@ -441,7 +441,7 @@ app.post('/api/reports', async (req, res) => {
 });
 
 // Get all sheet reports for a specific station
-app.get('/api/reports/sheets/station/:stationId', async (req, res) => {
+app.get('/api/sheets/station/:stationId', async (req, res) => {
     try {
         const reports = await Report.find({ 
             station: req.params.stationId,
@@ -455,7 +455,7 @@ app.get('/api/reports/sheets/station/:stationId', async (req, res) => {
 });
 
 // Get reports by sheet type
-app.get('/api/reports/sheets/type/:sheetType', async (req, res) => {
+app.get('/api/sheets/type/:sheetType', async (req, res) => {
     try {
         const reports = await Report.find({ 
             sheetType: req.params.sheetType 
@@ -468,7 +468,7 @@ app.get('/api/reports/sheets/type/:sheetType', async (req, res) => {
 });
 
 // Get station-specific C/SHEET
-app.get('/api/reports/sheets/csheet', async (req, res) => {
+app.get('/api/sheets/csheet', async (req, res) => {
   try {
     const { station } = req.query;
     
@@ -514,7 +514,7 @@ app.get('/api/reports/sheets/csheet', async (req, res) => {
 });
 
 // Save sheet endpoint (FIXED - no authentication)
-app.post('/api/reports/sheets/save', async (req, res) => {
+app.post('/api/sheets/save', async (req, res) => {
   try {
     const { station, sheetType, sheetId } = req.body;
     
