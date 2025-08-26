@@ -477,7 +477,7 @@ app.get('/api/sheets/csheet', async (req, res) => {
     }
     
     console.log(`Fetching C/SHEET for station: ${station}`);
-
+/*
         // Use static template instead of creating new copies
     const staticSheets = {
       'Mab-Met': 'https://docs.google.com/spreadsheets/d/1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ/edit',
@@ -504,9 +504,9 @@ app.get('/api/sheets/csheet', async (req, res) => {
       details: error.message 
     });
   }
-});
+});*/
     
-    /*
+    
     // Find the sheet in database
     const sheet = await Report.findOne({
       sheetType: 'CSHEET',
@@ -540,7 +540,7 @@ app.get('/api/sheets/csheet', async (req, res) => {
       details: error.message 
     });
   }
-});*/
+});
 
 // Save sheet endpoint (FIXED - no authentication)
 app.post('/api/sheets/save', async (req, res) => {
