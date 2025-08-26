@@ -162,7 +162,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 // Authentication Middleware
-const authenticate = (req, res, next) => {
+/*const authenticate = (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     if (!token) throw new Error();
@@ -173,7 +173,7 @@ const authenticate = (req, res, next) => {
   } catch (err) {
     res.status(401).send({ error: 'Please authenticate' });
   }
-};
+};*/
 
 
 // Contact Form Endpoint
