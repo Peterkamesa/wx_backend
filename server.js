@@ -162,7 +162,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 // Authentication Middleware
-/*const authenticate = (req, res, next) => {
+const authenticate = (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     if (!token) throw new Error();
@@ -174,7 +174,7 @@ app.post('/api/login', async (req, res) => {
     res.status(401).send({ error: 'Please authenticate' });
   }
 };
-*/
+
 
 // Contact Form Endpoint
 app.post('/api/contact', async (req, res) => {
@@ -477,7 +477,36 @@ app.get('/api/sheets/csheet', async (req, res) => {
     }
     
     console.log(`Fetching C/SHEET for station: ${station}`);
+
+        // Use static template instead of creating new copies
+    const staticSheets = {
+      'Mab-Met': 'https://docs.google.com/spreadsheets/d/1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ/edit',
+      'Dagoretti': 'https://docs.google.com/spreadsheets/d/1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ/edit',
+      'JKIA': 'https://docs.google.com/spreadsheets/d/1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ/edit',
+      'Wilson': 'https://docs.google.com/spreadsheets/d/1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ/edit'
+    };
+
+    const sheetUrl = staticSheets[station] || staticSheets['Mab-Met'];
     
+    res.json({
+      success: true,
+      station: station,
+      sheetType: 'CSHEET',
+      sheetId: '1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ',
+      sheetUrl: sheetUrl,
+      message: 'Using template sheet'
+    });
+    
+  } catch (error) {
+    console.error('Error in C/SHEET endpoint:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message 
+    });
+  }
+});
+    
+    /*
     // Find the sheet in database
     const sheet = await Report.findOne({
       sheetType: 'CSHEET',
@@ -511,7 +540,7 @@ app.get('/api/sheets/csheet', async (req, res) => {
       details: error.message 
     });
   }
-});
+});*/
 
 // Save sheet endpoint (FIXED - no authentication)
 app.post('/api/sheets/save', async (req, res) => {
