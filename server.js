@@ -472,11 +472,89 @@ app.get('/api/sheets/csheet', async (req, res) => {
   try {
     const { station } = req.query;
     
+    // 1. Input validation
     if (!station) {
       return res.status(400).json({ error: 'Station parameter is required' });
     }
-    
+
+    // 2. Validate station exists
+    const validStations = ['Mab-Met', 'Dagoretti', 'JKIA', 'Wilson'];
+    if (!validStations.includes(station)) {
+      return res.status(400).json({ 
+        error: 'Invalid station',
+        message: `Station '${station}' is not recognized. Valid stations: ${validStations.join(', ')}`
+      });
+    }
+
     console.log(`Fetching C/SHEET for station: ${station}`);
+    
+    // 3. Find existing sheet in database
+    const sheet = await Report.findOne({
+      sheetType: 'CSHEET',
+      station: station,
+      status: 'ACTIVE' // Add status filter
+    }).sort({ createdAt: -1 });
+    
+    if (sheet) {
+      console.log(`Found existing C/SHEET for ${station}: ${sheet.sheetId}`);
+      return res.json({
+        success: true,
+        sheetUrl: sheet.sheetUrl,
+        sheetId: sheet.sheetId,
+        station: sheet.station,
+        sheetType: sheet.sheetType,
+        exists: true
+      });
+    }
+    
+    console.log(`No existing C/SHEET found for ${station}, creating new one...`);
+    
+    // 4. Create new copy with fallback
+    try {
+      const newSheet = await createNewSheetCopy('CSHEET', station);
+      console.log(`Created new C/SHEET for ${station}: ${newSheet.sheetId}`);
+      return res.json({
+        success: true,
+        sheetUrl: newSheet.sheetUrl,
+        sheetId: newSheet.sheetId,
+        station: newSheet.station,
+        sheetType: newSheet.sheetType,
+        exists: false,
+        message: 'New sheet created successfully'
+      });
+      
+    } catch (error) {
+      console.error('Error creating new sheet:', error);
+      
+      // 5. FALLBACK: Return template URL if creation fails
+      const fallbackSheet = {
+        success: true,
+        sheetUrl: 'https://docs.google.com/spreadsheets/d/1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ/edit',
+        sheetId: '1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ',
+        station: station,
+        sheetType: 'CSHEET',
+        exists: false,
+        message: 'Using template sheet (creation failed)'
+      };
+      
+      return res.json(fallbackSheet);
+    }
+    
+  } catch (error) {
+    console.error('Error in C/SHEET endpoint:', error);
+    
+    // 6. Ultimate fallback for any unexpected errors
+    res.json({
+      success: true,
+      sheetUrl: 'https://docs.google.com/spreadsheets/d/1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ/edit',
+      sheetId: '1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ',
+      station: req.query.station || 'Mab-Met',
+      sheetType: 'CSHEET',
+      exists: false,
+      message: 'Using default template due to server error'
+    });
+  }
+});
 /*
         // Use static template instead of creating new copies
     const staticSheets = {
@@ -507,7 +585,8 @@ app.get('/api/sheets/csheet', async (req, res) => {
 });*/
     
     
-    // Find the sheet in database
+/*  
+// Find the sheet in database
     const sheet = await Report.findOne({
       sheetType: 'CSHEET',
       station: station
@@ -541,6 +620,7 @@ app.get('/api/sheets/csheet', async (req, res) => {
     });
   }
 });
+*/
 
 // Save sheet endpoint (FIXED - no authentication)
 app.post('/api/sheets/save', async (req, res) => {
