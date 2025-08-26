@@ -143,7 +143,7 @@ app.post('/api/login', async (req, res) => {
         
         // Generate token
         const token = jwt.sign(
-            { stationId: stationData.number, name: stationData.name },
+            { stationId: stationData.number, name: stationData.name, role: 'station'},
             process.env.JWT_SECRET || 'your_jwt_secret',
             { expiresIn: '24h' }
         );
