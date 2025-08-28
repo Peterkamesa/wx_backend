@@ -745,62 +745,21 @@ app.post('/api/send-report', async (req, res) => {
   try {
     const { to, subject, content } = req.body;
     
-    // Input validation
-    if (!to || !subject || !content) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required fields: to, subject, or content'
-      });
-    }
-
-    console.log('Attempting to send email to:', to, 'from:', process.env.EMAIL_USER2);
-
     const msg = {
       to: to,
-      from: {
-        email: process.env.EMAIL_USER2,
-        name: 'Weather System' // Add sender name
-      },
+      from: process.env.EMAIL_USER2,
       subject: subject,
       text: content,
-      html: `<div style="font-family: Arial, sans-serif; padding: 20px;">
-               <h2 style="color: #1b1b53;">Weather Report</h2>
-               <pre style="background: #f4f4f4; padding: 15px; border-radius: 5px; white-space: pre-wrap;">${content}</pre>
-             </div>`,
-      categories: ['weather-report'], // For analytics
+      html: `<pre>${content}</pre>`,
     };
 
-    const [response] = await sgMail.send(msg);
-    
-    // Log success with message ID
-    const messageId = response.headers['x-message-id'];
-    console.log('Email sent successfully. Message ID:', messageId);
-    
-    res.json({ 
-      success: true, 
-      message: 'Report sent successfully',
-      messageId: messageId // Return for tracking
-    });
-    
+    await sgMail.send(msg);
+    res.json({ success: true, message: 'Report sent successfully' });
   } catch (error) {
-    console.error('SendGrid Error Details:', {
-      code: error.code,
-      message: error.message,
-      response: error.response?.body
-    });
-
-    let userMessage = 'Error sending report';
-    
-    // Specific error messages
-    if (error.response?.body?.errors) {
-      const sgError = error.response.body.errors[0];
-      userMessage = `Email error: ${sgError.message}`;
-    }
-
+    console.error('Error sending email:', error);
     res.status(500).json({ 
       success: false, 
-      message: userMessage,
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: 'Error sending report'
     });
   }
 });
