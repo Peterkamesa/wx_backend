@@ -658,6 +658,45 @@ app.post('/api/send-report', async (req, res) => {
     }
 });
 
+// Get station-specific form626
+app.get('/api/sheets/form626', async (req, res) => {
+  try {
+    const { station } = req.query;
+    
+    if (!station) {
+      return res.status(400).json({ error: 'Station parameter is required' });
+    }
+    
+    console.log(`Fetching FORM626 for station: ${station}`);
+
+        // Use static template instead of creating new copies
+    const staticSheets = {
+      'Mab-Met': 'https://docs.google.com/spreadsheets/d/1fjJGi7txP1xiPyq-taM9Z7zY6joQ0sVRtKAnUyTq6QY/edit',
+      'Dagoretti': 'https://docs.google.com/spreadsheets/d/1Bfi6E5WKiMeGhInwD7J3sm60XgBFfIiIU06MyQFzWTk/edit',
+      'JKIA': 'https://docs.google.com/spreadsheets/d/1_njsLqKEci4oMvz1Tk2NDn00Wb_fgfJSVD0x1bb8Kao/edit',
+      'Wilson': 'https://docs.google.com/spreadsheets/d/12wxnp9aPb_4VXTufH9MHdiiUsoz26acDBSfKJQEKPFE/edit'
+    };
+
+    const sheetUrl = staticSheets[station] || staticSheets['Mab-Met'];
+    
+    res.json({
+      success: true,
+      station: station,
+      sheetType: 'FORM626',
+      sheetId: '1fjJGi7txP1xiPyq-taM9Z7zY6joQ0sVRtKAnUyTq6QY',
+      sheetUrl: sheetUrl,
+      message: 'Using template sheet'
+    });
+    
+  } catch (error) {
+    console.error('Error in FORM626 endpoint:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message 
+    });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
