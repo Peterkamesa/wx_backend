@@ -40,7 +40,7 @@ requiredEnvVars.forEach(varName => {
   }
 });
 
-let sheetsAuth = null;
+/*let sheetsAuth = null;
 try {
   if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
     sheetsAuth = new google.auth.JWT(
@@ -52,7 +52,7 @@ try {
   }
 } catch (error) {
   console.error('Google Auth initialization failed:', error);
-}
+}*/
 // Security Middleware
 app.use(helmet());
 
