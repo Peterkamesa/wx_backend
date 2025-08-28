@@ -8,7 +8,10 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
 const jwt = require('jsonwebtoken');
-const { google } = require('googleapis'); 
+const { google } = require('googleapis');
+const sgMail = require('@sendgrid/mail');
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 
 const app = express();
@@ -717,6 +720,7 @@ app.get('/api/sheets/agro18_dek', async (req, res) => {
 });
 
 //sending report via email
+/*
 app.post('/api/send-report', async (req, res) => {
     const { to, subject, content } = req.body;
     try {
@@ -734,6 +738,30 @@ app.post('/api/send-report', async (req, res) => {
         console.error('Error sending email:', error);
         res.status(500).json({ success: false, message: 'Error sending report', error: error.message });
     }
+});*/
+
+//sending report via email
+app.post('/api/send-report', async (req, res) => {
+  try {
+    const { to, subject, content } = req.body;
+    
+    const msg = {
+      to: to,
+      from: process.env.EMAIL_USER,
+      subject: subject,
+      text: content,
+      html: `<pre>${content}</pre>`,
+    };
+
+    await sgMail.send(msg);
+    res.json({ success: true, message: 'Report sent successfully' });
+  } catch (error) {
+    console.error('Error sending email:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error sending report'
+    });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
