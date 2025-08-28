@@ -32,7 +32,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 });
 
 // Validate required environment variables
-const requiredEnvVars = ['EMAIL_USER', 'EMAIL_PASS', 'MONGODB_URI', 'PORT', 'RECIPIENT_EMAIL', 'JWT_SECRET'];
+const requiredEnvVars = ['EMAIL_USER', 'EMAIL_USER2', 'EMAIL_PASS', 'MONGODB_URI', 'PORT', 'RECIPIENT_EMAIL', 'JWT_SECRET'];
 requiredEnvVars.forEach(varName => {
   if (!process.env[varName]) {
     console.error(`Missing required environment variable: rater${varName}`);
@@ -747,7 +747,7 @@ app.post('/api/send-report', async (req, res) => {
     
     const msg = {
       to: to,
-      from: process.env.EMAIL_USER,
+      from: process.env.EMAIL_USER2,
       subject: subject,
       text: content,
       html: `<pre>${content}</pre>`,
