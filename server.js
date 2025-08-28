@@ -720,7 +720,6 @@ app.get('/api/sheets/agro18_dek', async (req, res) => {
 });
 
 //sending report via email
-/*
 app.post('/api/send-report', async (req, res) => {
     const { to, subject, content } = req.body;
     try {
@@ -738,9 +737,10 @@ app.post('/api/send-report', async (req, res) => {
         console.error('Error sending email:', error);
         res.status(500).json({ success: false, message: 'Error sending report', error: error.message });
     }
-});*/
+});
 
 //sending report via email
+/*
 app.post('/api/send-report', async (req, res) => {
   try {
     const { to, subject, content } = req.body;
@@ -762,7 +762,7 @@ app.post('/api/send-report', async (req, res) => {
       message: 'Error sending report'
     });
   }
-});
+});*/
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
