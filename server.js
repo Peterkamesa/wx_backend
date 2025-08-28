@@ -40,7 +40,7 @@ requiredEnvVars.forEach(varName => {
   }
 });
 
-/*let sheetsAuth = null;
+let sheetsAuth = null;
 try {
   if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
     sheetsAuth = new google.auth.JWT(
@@ -52,7 +52,7 @@ try {
   }
 } catch (error) {
   console.error('Google Auth initialization failed:', error);
-}*/
+}
 // Security Middleware
 app.use(helmet());
 
@@ -719,6 +719,46 @@ app.get('/api/sheets/agro18_dek', async (req, res) => {
   }
 });
 
+// Get station-specific form446
+app.get('/api/sheets/form446', async (req, res) => {
+  try {
+    const { station } = req.query;
+    
+    if (!station) {
+      return res.status(400).json({ error: 'Station parameter is required' });
+    }
+    
+    console.log(`Fetching form446 for station: ${station}`);
+
+        // Using static template
+    const staticSheets = {
+      'Mab-Met': 'https://docs.google.com/spreadsheets/d/1AOVxn1lbp7qRuz5aocKgmxxzJAjcoXsmy7zYXI_JRxg/edit',
+      'Dagoretti': 'https://docs.google.com/spreadsheets/d/1fI3EY_2Tw7HNPP1TxTNAN4jTsbGb0RSv79b5oMraZFY/edit',
+      'JKIA': 'https://docs.google.com/spreadsheets/d/1unigPQPIEjlXIQqu-MCqzW9GZ3S82YaBKRzhEUIAh4I/edit',
+      'Wilson': 'https://docs.google.com/spreadsheets/d/1Fq-nA7CI076Ao75FiGO4CsBeSOUT7hfqSPipZ0tpetg/edit'
+    };
+
+    const sheetUrl = staticSheets[station] || staticSheets['Mab-Met'];
+    
+    res.json({
+      success: true,
+      station: station,
+      sheetType: 'FORM446',
+      sheetId: '1AOVxn1lbp7qRuz5aocKgmxxzJAjcoXsmy7zYXI_JRxg',
+      sheetUrl: sheetUrl,
+      message: 'Using template sheet'
+    });
+    
+  } catch (error) {
+    console.error('Error in FORM446 endpoint:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message 
+    });
+  }
+});
+
+
 //sending report via email
 app.post('/api/send-report', async (req, res) => {
     const { to, subject, content } = req.body;
@@ -739,7 +779,7 @@ app.post('/api/send-report', async (req, res) => {
     }
 });
 
-//sending report via email
+//sending report via email USING SENDGRID
 /*
 app.post('/api/send-report', async (req, res) => {
   try {
