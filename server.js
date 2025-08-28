@@ -758,6 +758,45 @@ app.get('/api/sheets/form446', async (req, res) => {
   }
 });
 
+// Get station-specific WEATHER SUMMARY
+app.get('/api/sheets/wxsummary', async (req, res) => {
+  try {
+    const { station } = req.query;
+    
+    if (!station) {
+      return res.status(400).json({ error: 'Station parameter is required' });
+    }
+    
+    console.log(`Fetching weather summary for station: ${station}`);
+
+        // Using static template
+    const staticSheets = {
+      'Mab-Met': 'https://docs.google.com/document/d/1kdLVF1bvKzFfRLVwMg5_Owl8IkpC2M3YkUgB5KzzrXM/edit',
+      'Dagoretti': 'https://docs.google.com/document/d/1q3Yy5YVWX-2tLKESm9rJBzwjXz8KRkeEHFclrg7G0b4/edit',
+      'JKIA': 'https://docs.google.com/document/d/16e-Z97HWRPyaTbdNUbgcv6cRcgpHcJYef7KX0OVkHVo/edit',
+      'Wilson': 'https://docs.google.com/document/d/1lah_FXTdp2bfVRI_cFBnIDGMscivouPkskWGKd4aS60/edit'
+    };
+
+    const sheetUrl = staticSheets[station] || staticSheets['Mab-Met'];
+    
+    res.json({
+      success: true,
+      station: station,
+      sheetType: 'WX_SUMMARY',
+      sheetId: '1kdLVF1bvKzFfRLVwMg5_Owl8IkpC2M3YkUgB5KzzrXM',
+      sheetUrl: sheetUrl,
+      message: 'Using template sheet'
+    });
+    
+  } catch (error) {
+    console.error('Error in WX SUMMARY endpoint:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message 
+    });
+  }
+});
+
 
 //sending report via email
 app.post('/api/send-report', async (req, res) => {
