@@ -637,27 +637,6 @@ async function createNewSheetCopy(sheetType, station) {
   }
 }
 
-
-//sending report via email
-app.post('/api/send-report', async (req, res) => {
-    const { to, subject, content } = req.body;
-    try {
-        await transporter.sendMail({
-            from: `"Weather System"<${process.env.EMAIL_USER}>`,
-            to,
-            subject,
-            text: content,
-            html: `<pre>${content}</pre>`,
-        });
-
-
-        res.json({ success: true, message: 'Report sent successfully' });
-    } catch (error) {
-        console.error('Error sending email:', error);
-        res.status(500).json({ success: false, message: 'Error sending report', error: error.message });
-    }
-});
-
 // Get station-specific form626
 app.get('/api/sheets/form626', async (req, res) => {
   try {
@@ -734,6 +713,26 @@ app.get('/api/sheets/agro18_dek', async (req, res) => {
       details: error.message 
     });
   }
+});
+
+//sending report via email
+app.post('/api/send-report', async (req, res) => {
+    const { to, subject, content } = req.body;
+    try {
+        await transporter.sendMail({
+            from: `"Weather System"<${process.env.EMAIL_USER}>`,
+            to,
+            subject,
+            text: content,
+            html: `<pre>${content}</pre>`,
+        });
+
+
+        res.json({ success: true, message: 'Report sent successfully' });
+    } catch (error) {
+        console.error('Error sending email:', error);
+        res.status(500).json({ success: false, message: 'Error sending report', error: error.message });
+    }
 });
 
 const PORT = process.env.PORT || 3000;
