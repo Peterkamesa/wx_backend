@@ -478,7 +478,7 @@ app.get('/api/sheets/csheet', async (req, res) => {
     
     console.log(`Fetching C/SHEET for station: ${station}`);
 
-        // Use static template instead of creating new copies
+        // Using static template
     const staticSheets = {
       'Mab-Met': 'https://docs.google.com/spreadsheets/d/1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ/edit',
       'Dagoretti': 'https://docs.google.com/spreadsheets/d/1PbDT6sRo8TLqShtDOlhEEwLRTHdxRN1xRCvrB9Dzrco/edit',
@@ -669,7 +669,7 @@ app.get('/api/sheets/form626', async (req, res) => {
     
     console.log(`Fetching FORM626 for station: ${station}`);
 
-        // Use static template instead of creating new copies
+       // Using static template
     const staticSheets = {
       'Mab-Met': 'https://docs.google.com/spreadsheets/d/1fjJGi7txP1xiPyq-taM9Z7zY6joQ0sVRtKAnUyTq6QY/edit',
       'Dagoretti': 'https://docs.google.com/spreadsheets/d/1Bfi6E5WKiMeGhInwD7J3sm60XgBFfIiIU06MyQFzWTk/edit',
@@ -690,6 +690,45 @@ app.get('/api/sheets/form626', async (req, res) => {
     
   } catch (error) {
     console.error('Error in FORM626 endpoint:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message 
+    });
+  }
+});
+
+// Get station-specific agro18 dekad
+app.get('/api/sheets/agro18_dek', async (req, res) => {
+  try {
+    const { station } = req.query;
+    
+    if (!station) {
+      return res.status(400).json({ error: 'Station parameter is required' });
+    }
+    
+    console.log(`Fetching AGRO18 DEKAD for station: ${station}`);
+
+        // Using static template
+    const staticSheets = {
+      'Mab-Met': 'https://docs.google.com/spreadsheets/d/1GBhOZBzNZNNtrGP5jVgjnSbLou4daP6Gw5EnRS_diUE/edit',
+      'Dagoretti': 'https://docs.google.com/spreadsheets/d/1tTDapJPc0wp1_NXQv5U8Fn4gdzHHT61a5-Ay7bCMiMI/edit',
+      'JKIA': 'https://docs.google.com/spreadsheets/d/1mDkYzWHtB8TD-SrmJRPMh7tEQEf3Rd_joKeTwQOBzfA/edit',
+      'Wilson': 'https://docs.google.com/spreadsheets/d/17jQ1EfuFsNlLAJ5RhjZj6ZqAMnWeio8EWleXpIFWTAk/edit'
+    };
+
+    const sheetUrl = staticSheets[station] || staticSheets['Mab-Met'];
+    
+    res.json({
+      success: true,
+      station: station,
+      sheetType: 'AGRO18_DEK',
+      sheetId: '1GBhOZBzNZNNtrGP5jVgjnSbLou4daP6Gw5EnRS_diUE',
+      sheetUrl: sheetUrl,
+      message: 'Using template sheet'
+    });
+    
+  } catch (error) {
+    console.error('Error in AGRO18_DEK endpoint:', error);
     res.status(500).json({ 
       error: 'Internal server error',
       details: error.message 
