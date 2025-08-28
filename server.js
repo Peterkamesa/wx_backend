@@ -481,9 +481,9 @@ app.get('/api/sheets/csheet', async (req, res) => {
         // Use static template instead of creating new copies
     const staticSheets = {
       'Mab-Met': 'https://docs.google.com/spreadsheets/d/1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ/edit',
-      'Dagoretti': 'https://docs.google.com/spreadsheets/d/1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ/edit',
-      'JKIA': 'https://docs.google.com/spreadsheets/d/1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ/edit',
-      'Wilson': 'https://docs.google.com/spreadsheets/d/1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ/edit'
+      'Dagoretti': 'https://docs.google.com/spreadsheets/d/1PbDT6sRo8TLqShtDOlhEEwLRTHdxRN1xRCvrB9Dzrco/edit',
+      'JKIA': 'https://docs.google.com/spreadsheets/d/1bO0gyuZQfmAJV46GSiB-kKKaR6ACAAHQwEVUtXCfEHk/edit',
+      'Wilson': 'https://docs.google.com/spreadsheets/d/1nT94BRte0a3ckxJUr2RcfykOw03XEpRYZ0ESncKsWYc/edit'
     };
 
     const sheetUrl = staticSheets[station] || staticSheets['Mab-Met'];
