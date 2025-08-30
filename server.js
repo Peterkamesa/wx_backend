@@ -68,7 +68,7 @@ app.use(cors({
     'http://127.0.0.1:5500'
   ],
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
-  allowedHeaders: ['Authorization, Content-Type']  // Important for API requests
+  allowedHeaders: ['Content-Type']  // Important for API requests
 }));
 
 // Rate limiting
