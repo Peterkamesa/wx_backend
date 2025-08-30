@@ -100,19 +100,19 @@ const Report = require('./models/report');
 // email transporter setup
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 587, // Alternative ports: 465 or 587
-  secure: false, // true for 465, false for other ports
+  port: 465, // Alternative ports: 465 or 587
+  secure: true, // true for 465, false for other ports
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   },
   tls: {
-    rejectUnauthorized: false // For testing only
+    rejectUnauthorized: true // For testing only
   },
 
-  connectionTimeout: 30000, // Increase timeout to 30 seconds
-  greetingTimeout: 30000,
-  socketTimeout: 30000
+  connectionTimeout: 10000, // Increase timeout to 30 seconds
+  greetingTimeout: 10000,
+  socketTimeout: 10000
 });
 
 // Station model (no need to store in DB since we have fixed stations)
