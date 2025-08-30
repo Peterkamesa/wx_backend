@@ -110,9 +110,9 @@ const transporter = nodemailer.createTransport({
     rejectUnauthorized: true // For testing only
   },
 
-  connectionTimeout: 10000, // Increase timeout to 30 seconds
-  greetingTimeout: 10000,
-  socketTimeout: 10000
+  connectionTimeout: 30000, // Increase timeout to 30 seconds
+  greetingTimeout: 30000,
+  socketTimeout: 30000
 });
 
 // Station model (no need to store in DB since we have fixed stations)
