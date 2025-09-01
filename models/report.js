@@ -49,7 +49,7 @@ const reportSchema = new mongoose.Schema({
     },
         sheetType: {
         type: String,
-        enum: ['FORM626', 'CSHEET', 'FORM446', 'WX_SUMMARY', 'AGRO18_DEK', null],
+        enum: ['FORM626', 'CSHEET', 'FORM446', 'WX_SUMMARY', 'RCART', 'AGRO18_DEK', null],
         default: null
     },
     sheetId: {

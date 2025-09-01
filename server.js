@@ -695,7 +695,7 @@ app.get('/api/sheets/agro18_dek', async (req, res) => {
     const staticSheets = {
       'Mab-Met': 'https://docs.google.com/spreadsheets/d/1GBhOZBzNZNNtrGP5jVgjnSbLou4daP6Gw5EnRS_diUE/edit',
       'Dagoretti': 'https://docs.google.com/spreadsheets/d/1tTDapJPc0wp1_NXQv5U8Fn4gdzHHT61a5-Ay7bCMiMI/edit',
-      'JKIA': 'https://docs.google.com/spreadsheets/d/1mDkYzWHtB8TD-SrmJRPMh7tEQEf3Rd_joKeTwQOBzfA/edit',
+      'JKIA': 'https://docs.google.com/spreadsheets/d/1zfRoAJ-eWWgywCfHZ9kr7avJ1dWl3pVqFVdrnnIKg0g/edit',
       'Wilson': 'https://docs.google.com/spreadsheets/d/17jQ1EfuFsNlLAJ5RhjZj6ZqAMnWeio8EWleXpIFWTAk/edit'
     };
 
@@ -790,6 +790,45 @@ app.get('/api/sheets/wxsummary', async (req, res) => {
     
   } catch (error) {
     console.error('Error in WX SUMMARY endpoint:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message 
+    });
+  }
+});
+
+// Get station-specific RAINFALL CART
+app.get('/api/sheets/rainfallcart', async (req, res) => {
+  try {
+    const { station } = req.query;
+    
+    if (!station) {
+      return res.status(400).json({ error: 'Station parameter is required' });
+    }
+    
+    console.log(`Fetching rainfall cart for station: ${station}`);
+
+        // Using static template
+    const staticSheets = {
+      'Mab-Met': 'https://docs.google.com/document/d/1V0gSCiFVeqbfFVxrnI39vJQnQkjw5jMaPgm3Y75bfD4/edit',
+      'Dagoretti': 'https://docs.google.com/document/d/1Pv4PCEDcs2UtZxCCcJmQT-e2E0soBQudi4bN_TY5Bm4/edit',
+      'JKIA': 'https://docs.google.com/document/d/1fGPbof2ca1-kI0Tft7cqNL_y9_o2tVw8gbu0FEETKwk/edit',
+      'Wilson': 'https://docs.google.com/document/d/1Lwkae1Vs6r-HNGfiuZl1dCeUqEKDWaL_PwaM3FR0cJ0/edit'
+    };
+
+    const sheetUrl = staticSheets[station] || staticSheets['Mab-Met'];
+    
+    res.json({
+      success: true,
+      station: station,
+      sheetType: 'RCART',
+      sheetId: '1V0gSCiFVeqbfFVxrnI39vJQnQkjw5jMaPgm3Y75bfD4',
+      sheetUrl: sheetUrl,
+      message: 'Using template sheet'
+    });
+    
+  } catch (error) {
+    console.error('Error in rainfall cart endpoint:', error);
     res.status(500).json({ 
       error: 'Internal server error',
       details: error.message 
