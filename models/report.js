@@ -18,7 +18,7 @@ const reportSchema = new mongoose.Schema({
         default: Date.now
     },
     
-    // Fields specific to contact messages (only used when type='CONTACT')
+    // Fields specific to contact messages
     name: {
         type: String,
         required: function() { return this.type === 'CONTACT'; },
@@ -47,7 +47,7 @@ const reportSchema = new mongoose.Schema({
         enum: ['NEW', 'PROCESSED', 'ARCHIVED'],
         default: 'NEW'
     },
-        sheetType: {
+    sheetType: {
         type: String,
         enum: ['FORM626', 'CSHEET', 'FORM446', 'WX_SUMMARY', 'RCART', 'AGRO18_DEK', null],
         default: null
@@ -55,7 +55,7 @@ const reportSchema = new mongoose.Schema({
     sheetId: {
         type: String,
         unique: true,
-        sparse: true // Allows null values without affecting uniqueness
+        sparse: true
     },
     sheetUrl: {
         type: String,
@@ -66,31 +66,37 @@ const reportSchema = new mongoose.Schema({
         enum: ['Mab-Met', 'Dagoretti', 'JKIA', 'Wilson', null],
         default: null
     },
-    month: {  // For WX SUMMARY forms
+    month: {
         type: String,
         enum: ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', null],
         default: null
+    },
+    
+    // Add these missing fields properly
+    ipAddress: {
+        type: String,
+        trim: true
+    },
+    userAgent: {
+        type: String,
+        trim: true
     }
 }, {
-    // Add discriminator key if you want to use polymorphic behavior
-    discriminatorKey: 'recordType',
-    ipAddress: String,
-    userAgent: String
+    // Schema options
+    discriminatorKey: 'recordType'  // Only if you plan to use discriminators
 });
 
-// Adding indexes for better query performance
+// Indexes (correct)
 reportSchema.index({ type: 1, createdAt: -1 });
 reportSchema.index({ email: 1, type: 1 });
 reportSchema.index({ status: 1 });
-
 reportSchema.index({ sheetId: 1 });
 reportSchema.index({ station: 1, sheetType: 1 });
 reportSchema.index({ sheetType: 1, month: 1 });
 
-// Pre-save hook for additional processing
+// Pre-save hook (correct)
 reportSchema.pre('save', function(next) {
     if (this.type === 'CONTACT') {
-        // Set the content field for contact messages by combining subject and message
         this.content = `Contact Form: ${this.subject || 'No Subject'}\n\n${this.message}`;
     }
     next();
