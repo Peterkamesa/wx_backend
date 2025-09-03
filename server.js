@@ -8,10 +8,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
 const jwt = require('jsonwebtoken');
-const { google } = require('googleapis');
-const sgMail = require('@sendgrid/mail');
-
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+const { google } = require('googleapis'); 
 
 
 const app = express();
@@ -32,7 +29,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 });
 
 // Validate required environment variables
-const requiredEnvVars = ['EMAIL_USER', 'EMAIL_USER2', 'EMAIL_PASS', 'MONGODB_URI', 'PORT', 'RECIPIENT_EMAIL', 'JWT_SECRET'];
+const requiredEnvVars = ['EMAIL_USER', 'EMAIL_PASS', 'MONGODB_URI', 'PORT', 'RECIPIENT_EMAIL', 'JWT_SECRET'];
 requiredEnvVars.forEach(varName => {
   if (!process.env[varName]) {
     console.error(`Missing required environment variable: rater${varName}`);
@@ -40,19 +37,14 @@ requiredEnvVars.forEach(varName => {
   }
 });
 
-let sheetsAuth = null;
-try {
-  if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
-    sheetsAuth = new google.auth.JWT(
-      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      null,
-      process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n') || process.env.GOOGLE_PRIVATE_KEY,
-      ['https://www.googleapis.com/auth/drive']
-    );
-  }
-} catch (error) {
-  console.error('Google Auth initialization failed:', error);
-}
+// Configure Google Auth
+const sheetsAuth = new google.auth.JWT(
+  process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+  null,
+  process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+  ['https://www.googleapis.com/auth/drive']
+);
+
 // Security Middleware
 app.use(helmet());
 
@@ -100,8 +92,8 @@ const Report = require('./models/report');
 // email transporter setup
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 465, // Alternative ports: 465 or 587
-  secure: true, // true for 465, false for other ports
+  port: 587, // Alternative ports: 465 or 587
+  secure: false, // true for 465, false for other ports
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
@@ -146,7 +138,7 @@ app.post('/api/login', async (req, res) => {
         
         // Generate token
         const token = jwt.sign(
-            { stationId: stationData.number, name: stationData.name, role: 'station'},
+            { stationId: stationData.number, name: stationData.name },
             process.env.JWT_SECRET || 'your_jwt_secret',
             { expiresIn: '24h' }
         );
@@ -165,7 +157,6 @@ app.post('/api/login', async (req, res) => {
 });
 
 // Authentication Middleware
-/*
 const authenticate = (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
@@ -177,7 +168,7 @@ const authenticate = (req, res, next) => {
   } catch (err) {
     res.status(401).send({ error: 'Please authenticate' });
   }
-};*/
+};
 
 
 // Contact Form Endpoint
@@ -261,28 +252,31 @@ app.get('/api/contact', async (req, res) => {
 });
 
 
-app.post('/api/sheets', async (req, res) => {
+app.post('/api/reports/sheets', async (req, res) => {
+  // Verify API key first
+  /*if (req.body.apiKey !== process.env.API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }*/
+    
+
   try {
     const { station, formType, sheetId } = req.body;
     
-    // Use Report model instead of Sheet
-    const sheetRecord = new Report({
-      type: 'SHEET',
-      sheetType: formType,
-      sheetId,
-      sheetUrl: `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
+    // Save to MongoDB
+    const sheetRecord = new Sheet({
       station,
-      status: 'ACTIVE',
+      formType,
+      sheetId,
       createdAt: new Date()
     });
     
     await sheetRecord.save();
     res.json({ success: true });
   } catch (err) {
-    console.error('Error saving sheet:', err);
     res.status(500).json({ error: err.message });
   }
 });
+
 // GET all METAR reports
 app.get('/api/reports/METAR', async (req, res) => {
     try {
@@ -430,7 +424,7 @@ app.post('/api/reports', async (req, res) => {
       content,
       type,
       station,
-      sheetType,
+      sheetType: type === 'SHEET' ? sheetType : null, // Only set sheetType if type is SHEET
       sheetId,
       sheetUrl,
       month,
@@ -445,7 +439,7 @@ app.post('/api/reports', async (req, res) => {
 });
 
 // Get all sheet reports for a specific station
-app.get('/api/sheets/station/:stationId', async (req, res) => {
+app.get('/api/reports/sheets/station/:stationId', async (req, res) => {
     try {
         const reports = await Report.find({ 
             station: req.params.stationId,
@@ -459,7 +453,7 @@ app.get('/api/sheets/station/:stationId', async (req, res) => {
 });
 
 // Get reports by sheet type
-app.get('/api/sheets/type/:sheetType', async (req, res) => {
+app.get('/api/reports/sheets/type/:sheetType', async (req, res) => {
     try {
         const reports = await Report.find({ 
             sheetType: req.params.sheetType 
@@ -471,8 +465,8 @@ app.get('/api/sheets/type/:sheetType', async (req, res) => {
     }
 });
 
-// Get station-specific C/SHEET
-app.get('/api/sheets/csheet', async (req, res) => {
+// Get station-specific C/SHEET (FIXED - no authentication)
+app.get('/api/reports/sheets/csheet', async (req, res) => {
   try {
     const { station } = req.query;
     
@@ -480,74 +474,32 @@ app.get('/api/sheets/csheet', async (req, res) => {
       return res.status(400).json({ error: 'Station parameter is required' });
     }
     
-    console.log(`Fetching C/SHEET for station: ${station}`);
-
-        // Using static template
-    const staticSheets = {
-      'Mab-Met': 'https://docs.google.com/spreadsheets/d/1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ/edit',
-      'Dagoretti': 'https://docs.google.com/spreadsheets/d/1PbDT6sRo8TLqShtDOlhEEwLRTHdxRN1xRCvrB9Dzrco/edit',
-      'JKIA': 'https://docs.google.com/spreadsheets/d/1bO0gyuZQfmAJV46GSiB-kKKaR6ACAAHQwEVUtXCfEHk/edit',
-      'Wilson': 'https://docs.google.com/spreadsheets/d/1nT94BRte0a3ckxJUr2RcfykOw03XEpRYZ0ESncKsWYc/edit'
-    };
-
-    const sheetUrl = staticSheets[station] || staticSheets['Mab-Met'];
-    
-    res.json({
-      success: true,
-      station: station,
-      sheetType: 'CSHEET',
-      sheetId: '1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ',
-      sheetUrl: sheetUrl,
-      message: 'Using template sheet'
-    });
-    
-  } catch (error) {
-    console.error('Error in C/SHEET endpoint:', error);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      details: error.message 
-    });
-  }
-});
-    
-    /*
     // Find the sheet in database
     const sheet = await Report.findOne({
       sheetType: 'CSHEET',
       station: station
     }).sort({ createdAt: -1 });
     
-    if (sheet) {
-      console.log(`Found existing C/SHEET for ${station}: ${sheet.sheetId}`);
-      return res.json(sheet);
+    if (!sheet) {
+      // Create a new copy if doesn't exist
+      try {
+        const newSheet = await createNewSheetCopy('CSHEET', station);
+        return res.json(newSheet);
+      } catch (error) {
+        console.error('Error creating new sheet:', error);
+        return res.status(500).json({ error: 'Failed to create new sheet' });
+      }
     }
     
-    console.log(`No existing C/SHEET found for ${station}, creating new one...`);
-    
-    // Create a new copy if doesn't exist
-    try {
-      const newSheet = await createNewSheetCopy('CSHEET', station);
-      console.log(`Created new C/SHEET for ${station}: ${newSheet.sheetId}`);
-      return res.json(newSheet);
-    } catch (error) {
-      console.error('Error creating new sheet:', error);
-      return res.status(500).json({ 
-        error: 'Failed to create new sheet',
-        details: error.message 
-      });
-    }
-    
+    res.json(sheet);
   } catch (error) {
-    console.error('Error in C/SHEET endpoint:', error);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      details: error.message 
-    });
+    console.error('Error fetching sheet:', error);
+    res.status(500).json({ error: error.message });
   }
-});*/
+});
 
 // Save sheet endpoint (FIXED - no authentication)
-app.post('/api/sheets/save', async (req, res) => {
+app.post('/api/reports/sheets/save', async (req, res) => {
   try {
     const { station, sheetType, sheetId } = req.body;
     
@@ -588,253 +540,48 @@ app.post('/api/sheets/save', async (req, res) => {
 
 // Helper function to create new sheet copies
 async function createNewSheetCopy(sheetType, station) {
-  try {
-    if (!sheetsAuth) {
-      throw new Error('Google Sheets authentication not configured');
-    }
-    
-    const templateIds = {
-      'FORM626': '13rvm1nltX1Gteu4N4qj13LpGPYYz2EUs7eEOEZwbzuo',
-      'CSHEET': '1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ',
-      'FORM446': '1GBhOZBzNZNNtrGP5jVgjnSbLou4daP6Gw5EnRS_diUE',
-      'WX_SUMMARY': '1xo2b0cLtw7wZhEy3ZdkFDIIhz4ZeA0cO'
-    };
-    
-    if (!templateIds[sheetType]) {
-      throw new Error(`Unknown sheet type: ${sheetType}`);
-    }
-    
-    const drive = google.drive({ version: 'v3', auth: sheetsAuth });
-    
-    const copyResponse = await drive.files.copy({
-      fileId: templateIds[sheetType],
-      requestBody: {
-        name: `${station} - ${sheetType} - ${new Date().toISOString().split('T')[0]}`
-      }
-    });
-    
-    await drive.permissions.create({
-      fileId: copyResponse.data.id,
-      requestBody: {
-        role: 'writer',
-        type: 'anyone'
-      }
-    });
-    
-    const sheetUrl = `https://docs.google.com/spreadsheets/d/${copyResponse.data.id}/edit`;
-    
-    const report = new Report({
-      type: 'SHEET',
-      sheetType,
-      sheetId: copyResponse.data.id,
-      sheetUrl,
-      station,
-      status: 'ACTIVE'
-    });
-    
-    await report.save();
-    return report;
-    
-  } catch (error) {
-    console.error('Error creating new sheet copy:', error);
-    throw error; // Re-throw to be handled by the caller
+  const templateIds = {
+    'FORM626': '13rvm1nltX1Gteu4N4qj13LpGPYYz2EUs7eEOEZwbzuo',
+    'CSHEET': '1Cmf1zDCOH9z1SZPwd-vNDx5vkWEs0nzhN3x-fXH1SlQ',
+    'FORM446': '1GBhOZBzNZNNtrGP5jVgjnSbLou4daP6Gw5EnRS_diUE',
+    'WX_SUMMARY': '1xo2b0cLtw7wZhEy3ZdkFDIIhz4ZeA0cO'
+  };
+  
+  if (!sheetsAuth) {
+    throw new Error('Google Sheets authentication not configured');
   }
+  
+  const drive = google.drive({ version: 'v3', auth: sheetsAuth });
+  
+  const copyResponse = await drive.files.copy({
+    fileId: templateIds[sheetType],
+    requestBody: {
+      name: `${station} - ${sheetType}`
+    }
+  });
+  
+  await drive.permissions.create({
+    fileId: copyResponse.data.id,
+    requestBody: {
+      role: 'writer',
+      type: 'anyone'
+    }
+  });
+  
+  const sheetUrl = `https://docs.google.com/spreadsheets/d/${copyResponse.data.id}/edit`;
+  
+  const report = new Report({
+    type: 'SHEET',
+    sheetType,
+    sheetId: copyResponse.data.id,
+    sheetUrl,
+    station,
+    status: 'ACTIVE'
+  });
+  
+  await report.save();
+  return report;
 }
-
-// Get station-specific form626
-app.get('/api/sheets/form626', async (req, res) => {
-  try {
-    const { station } = req.query;
-    
-    if (!station) {
-      return res.status(400).json({ error: 'Station parameter is required' });
-    }
-    
-    console.log(`Fetching FORM626 for station: ${station}`);
-
-       // Using static template
-    const staticSheets = {
-      'Mab-Met': 'https://docs.google.com/spreadsheets/d/1fjJGi7txP1xiPyq-taM9Z7zY6joQ0sVRtKAnUyTq6QY/edit',
-      'Dagoretti': 'https://docs.google.com/spreadsheets/d/1Bfi6E5WKiMeGhInwD7J3sm60XgBFfIiIU06MyQFzWTk/edit',
-      'JKIA': 'https://docs.google.com/spreadsheets/d/1_njsLqKEci4oMvz1Tk2NDn00Wb_fgfJSVD0x1bb8Kao/edit',
-      'Wilson': 'https://docs.google.com/spreadsheets/d/12wxnp9aPb_4VXTufH9MHdiiUsoz26acDBSfKJQEKPFE/edit'
-    };
-
-    const sheetUrl = staticSheets[station] || staticSheets['Mab-Met'];
-    
-    res.json({
-      success: true,
-      station: station,
-      sheetType: 'FORM626',
-      sheetId: '1fjJGi7txP1xiPyq-taM9Z7zY6joQ0sVRtKAnUyTq6QY',
-      sheetUrl: sheetUrl,
-      message: 'Using template sheet'
-    });
-    
-  } catch (error) {
-    console.error('Error in FORM626 endpoint:', error);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      details: error.message 
-    });
-  }
-});
-
-// Get station-specific agro18 dekad
-app.get('/api/sheets/agro18_dek', async (req, res) => {
-  try {
-    const { station } = req.query;
-    
-    if (!station) {
-      return res.status(400).json({ error: 'Station parameter is required' });
-    }
-    
-    console.log(`Fetching AGRO18 DEKAD for station: ${station}`);
-
-        // Using static template
-    const staticSheets = {
-      'Mab-Met': 'https://docs.google.com/spreadsheets/d/1GBhOZBzNZNNtrGP5jVgjnSbLou4daP6Gw5EnRS_diUE/edit',
-      'Dagoretti': 'https://docs.google.com/spreadsheets/d/1tTDapJPc0wp1_NXQv5U8Fn4gdzHHT61a5-Ay7bCMiMI/edit',
-      'JKIA': 'https://docs.google.com/spreadsheets/d/1zfRoAJ-eWWgywCfHZ9kr7avJ1dWl3pVqFVdrnnIKg0g/edit',
-      'Wilson': 'https://docs.google.com/spreadsheets/d/17jQ1EfuFsNlLAJ5RhjZj6ZqAMnWeio8EWleXpIFWTAk/edit'
-    };
-
-    const sheetUrl = staticSheets[station] || staticSheets['Mab-Met'];
-    
-    res.json({
-      success: true,
-      station: station,
-      sheetType: 'AGRO18_DEK',
-      sheetId: '1GBhOZBzNZNNtrGP5jVgjnSbLou4daP6Gw5EnRS_diUE',
-      sheetUrl: sheetUrl,
-      message: 'Using template sheet'
-    });
-    
-  } catch (error) {
-    console.error('Error in AGRO18_DEK endpoint:', error);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      details: error.message 
-    });
-  }
-});
-
-// Get station-specific form446
-app.get('/api/sheets/form446', async (req, res) => {
-  try {
-    const { station } = req.query;
-    
-    if (!station) {
-      return res.status(400).json({ error: 'Station parameter is required' });
-    }
-    
-    console.log(`Fetching form446 for station: ${station}`);
-
-        // Using static template
-    const staticSheets = {
-      'Mab-Met': 'https://docs.google.com/spreadsheets/d/1AOVxn1lbp7qRuz5aocKgmxxzJAjcoXsmy7zYXI_JRxg/edit',
-      'Dagoretti': 'https://docs.google.com/spreadsheets/d/1fI3EY_2Tw7HNPP1TxTNAN4jTsbGb0RSv79b5oMraZFY/edit',
-      'JKIA': 'https://docs.google.com/spreadsheets/d/1unigPQPIEjlXIQqu-MCqzW9GZ3S82YaBKRzhEUIAh4I/edit',
-      'Wilson': 'https://docs.google.com/spreadsheets/d/1Fq-nA7CI076Ao75FiGO4CsBeSOUT7hfqSPipZ0tpetg/edit'
-    };
-
-    const sheetUrl = staticSheets[station] || staticSheets['Mab-Met'];
-    
-    res.json({
-      success: true,
-      station: station,
-      sheetType: 'FORM446',
-      sheetId: '1AOVxn1lbp7qRuz5aocKgmxxzJAjcoXsmy7zYXI_JRxg',
-      sheetUrl: sheetUrl,
-      message: 'Using template sheet'
-    });
-    
-  } catch (error) {
-    console.error('Error in FORM446 endpoint:', error);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      details: error.message 
-    });
-  }
-});
-
-// Get station-specific WEATHER SUMMARY
-app.get('/api/sheets/wxsummary', async (req, res) => {
-  try {
-    const { station } = req.query;
-    
-    if (!station) {
-      return res.status(400).json({ error: 'Station parameter is required' });
-    }
-    
-    console.log(`Fetching weather summary for station: ${station}`);
-
-        // Using static template
-    const staticSheets = {
-      'Mab-Met': 'https://docs.google.com/document/d/1kdLVF1bvKzFfRLVwMg5_Owl8IkpC2M3YkUgB5KzzrXM/edit',
-      'Dagoretti': 'https://docs.google.com/document/d/1q3Yy5YVWX-2tLKESm9rJBzwjXz8KRkeEHFclrg7G0b4/edit',
-      'JKIA': 'https://docs.google.com/document/d/16e-Z97HWRPyaTbdNUbgcv6cRcgpHcJYef7KX0OVkHVo/edit',
-      'Wilson': 'https://docs.google.com/document/d/1lah_FXTdp2bfVRI_cFBnIDGMscivouPkskWGKd4aS60/edit'
-    };
-
-    const sheetUrl = staticSheets[station] || staticSheets['Mab-Met'];
-    
-    res.json({
-      success: true,
-      station: station,
-      sheetType: 'WX_SUMMARY',
-      sheetId: '1kdLVF1bvKzFfRLVwMg5_Owl8IkpC2M3YkUgB5KzzrXM',
-      sheetUrl: sheetUrl,
-      message: 'Using template sheet'
-    });
-    
-  } catch (error) {
-    console.error('Error in WX SUMMARY endpoint:', error);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      details: error.message 
-    });
-  }
-});
-
-// Get station-specific RAINFALL CART
-app.get('/api/sheets/rainfallcart', async (req, res) => {
-  try {
-    const { station } = req.query;
-    
-    if (!station) {
-      return res.status(400).json({ error: 'Station parameter is required' });
-    }
-    
-    console.log(`Fetching rainfall cart for station: ${station}`);
-
-        // Using static template
-    const staticSheets = {
-      'Mab-Met': 'https://docs.google.com/document/d/1V0gSCiFVeqbfFVxrnI39vJQnQkjw5jMaPgm3Y75bfD4/edit',
-      'Dagoretti': 'https://docs.google.com/document/d/1Pv4PCEDcs2UtZxCCcJmQT-e2E0soBQudi4bN_TY5Bm4/edit',
-      'JKIA': 'https://docs.google.com/document/d/1fGPbof2ca1-kI0Tft7cqNL_y9_o2tVw8gbu0FEETKwk/edit',
-      'Wilson': 'https://docs.google.com/document/d/1Lwkae1Vs6r-HNGfiuZl1dCeUqEKDWaL_PwaM3FR0cJ0/edit'
-    };
-
-    const sheetUrl = staticSheets[station] || staticSheets['Mab-Met'];
-    
-    res.json({
-      success: true,
-      station: station,
-      sheetType: 'RCART',
-      sheetId: '1V0gSCiFVeqbfFVxrnI39vJQnQkjw5jMaPgm3Y75bfD4',
-      sheetUrl: sheetUrl,
-      message: 'Using template sheet'
-    });
-    
-  } catch (error) {
-    console.error('Error in rainfall cart endpoint:', error);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      details: error.message 
-    });
-  }
-});
 
 
 //sending report via email
@@ -856,31 +603,6 @@ app.post('/api/send-report', async (req, res) => {
         res.status(500).json({ success: false, message: 'Error sending report', error: error.message });
     }
 });
-
-//sending report via email USING SENDGRID
-/*
-app.post('/api/send-report', async (req, res) => {
-  try {
-    const { to, subject, content } = req.body;
-    
-    const msg = {
-      to: to,
-      from: process.env.EMAIL_USER2,
-      subject: subject,
-      text: content,
-      html: `<pre>${content}</pre>`,
-    };
-
-    await sgMail.send(msg);
-    res.json({ success: true, message: 'Report sent successfully' });
-  } catch (error) {
-    console.error('Error sending email:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error sending report'
-    });
-  }
-});*/
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
