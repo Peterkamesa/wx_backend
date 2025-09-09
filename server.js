@@ -260,8 +260,18 @@ app.get('/api/contact', async (req, res) => {
     }
 });
 
+// API Key authentication middleware
+const authenticateApiKey = (req, res, next) => {
+  const apiKey = req.body.apiKey || req.query.apiKey;
+  
+  if (!apiKey || apiKey !== process.env.API_KEY) {
+    return res.status(401).json({ error: 'Invalid API key' });
+  }
+  
+  next();
+};
 
-app.post('/api/sheets', async (req, res) => {
+app.post('/api/sheets', authenticateApiKey, async (req, res) => {
   try {
     const { station, formType, sheetId } = req.body;
     
