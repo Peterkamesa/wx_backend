@@ -81,9 +81,9 @@ const reportSchema = new mongoose.Schema({
         type: String,
         trim: true
     }
-
+}, {
     // Schema options
-   // discriminatorKey: 'recordType'  // Only if you plan to use discriminators
+    discriminatorKey: 'recordType'  // Only if you plan to use discriminators
 });
 
 // Indexes (correct)
