@@ -97,11 +97,19 @@ app.use((req, res, next) => {
 // report models(report.js)
 const Report = require('./models/report');
 
+// Initialize OAuth2 client
 const oAuth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
   process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/oauth2callback'
 );
+
+// Set credentials if refresh token exists
+if (process.env.GOOGLE_REFRESH_TOKEN) {
+  oAuth2Client.setCredentials({
+    refresh_token: process.env.GOOGLE_REFRESH_TOKEN
+  });
+}
 
 // OAuth initiation endpoint
 app.get('/auth/google', (req, res) => {
@@ -113,7 +121,7 @@ app.get('/auth/google', (req, res) => {
   res.redirect(authUrl);
 });
 
-// OAuth callback endpoint (THIS IS WHAT YOU'RE MISSING)
+// OAuth callback endpoint
 app.get('/oauth2callback', async (req, res) => {
   try {
     const { code } = req.query;
@@ -127,6 +135,9 @@ app.get('/oauth2callback', async (req, res) => {
     console.log('✅ Authentication successful!');
     console.log('Refresh Token:', tokens.refresh_token);
     console.log('Access Token:', tokens.access_token);
+    
+    // Store the refresh token in credentials
+    oAuth2Client.setCredentials(tokens);
     
     res.send(`
       <h1>✅ Authentication Successful!</h1>
@@ -145,22 +156,90 @@ app.get('/oauth2callback', async (req, res) => {
   }
 });
 
-// email transporter setup
-const transporter = nodemailer.createTransport({
+// Function to create OAuth2 transporter
+const createOAuthTransporter = async () => {
+  try {
+    // Get access token
+    const accessToken = await oAuth2Client.getAccessToken();
+    
+    if (!accessToken.token) {
+      throw new Error('Failed to get access token');
+    }
+
+    // Create and return transporter
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        type: 'OAuth2',
+        user: process.env.EMAIL_USER,
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        refreshToken: process.env.GOOGLE_REFRESH_TOKEN,
+        accessToken: accessToken.token,
+      },
+    });
+  } catch (error) {
+    console.error('Error creating OAuth transporter:', error);
+    throw error;
+  }
+};
+
+// Fallback SMTP transporter (keep your original as backup)
+const smtpTransporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 587, // Alternative ports: 465 or 587
-  secure: false, // true for 465, false for other ports
+  port: 587,
+  secure: false,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   },
   tls: {
-    rejectUnauthorized: true // For testing only
+    rejectUnauthorized: true
   },
-
-  connectionTimeout: 30000, // Increase timeout to 30 seconds
+  connectionTimeout: 30000,
   greetingTimeout: 30000,
   socketTimeout: 30000
+});
+
+// sending report via email
+app.post('/api/send-report', async (req, res) => {
+  const { to, subject, content } = req.body;
+  
+  try {
+    let transporter;
+    
+    // Try OAuth2 first if refresh token is available
+    if (process.env.GOOGLE_REFRESH_TOKEN) {
+      try {
+        transporter = await createOAuthTransporter();
+        console.log('Using OAuth2 transporter');
+      } catch (oauthError) {
+        console.warn('OAuth2 failed, falling back to SMTP:', oauthError.message);
+        transporter = smtpTransporter;
+      }
+    } else {
+      // Use SMTP if no refresh token
+      transporter = smtpTransporter;
+      console.log('Using SMTP transporter (no OAuth2 token available)');
+    }
+
+    await transporter.sendMail({
+      from: `"Weather System" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      text: content,
+      html: `<pre>${content}</pre>`,
+    });
+
+    res.json({ success: true, message: 'Report sent successfully' });
+  } catch (error) {
+    console.error('Error sending email:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error sending report', 
+      error: error.message 
+    });
+  }
 });
 
 // Station model (no need to store in DB since we have fixed stations)
@@ -896,6 +975,7 @@ app.get('/api/sheets/rainfallcart', async (req, res) => {
 
 
 //sending report via email
+/*
 app.post('/api/send-report', async (req, res) => {
     const { to, subject, content } = req.body;
     try {
@@ -914,6 +994,7 @@ app.post('/api/send-report', async (req, res) => {
         res.status(500).json({ success: false, message: 'Error sending report', error: error.message });
     }
 });
+*/
 
 //sending report via email USING SENDGRID
 /*
