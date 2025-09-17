@@ -97,6 +97,54 @@ app.use((req, res, next) => {
 // report models(report.js)
 const Report = require('./models/report');
 
+const oAuth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/oauth2callback'
+);
+
+// OAuth initiation endpoint
+app.get('/auth/google', (req, res) => {
+  const authUrl = oAuth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: ['https://www.googleapis.com/auth/gmail.send'],
+    prompt: 'consent'
+  });
+  res.redirect(authUrl);
+});
+
+// OAuth callback endpoint (THIS IS WHAT YOU'RE MISSING)
+app.get('/oauth2callback', async (req, res) => {
+  try {
+    const { code } = req.query;
+    
+    if (!code) {
+      return res.status(400).send('Authorization code missing');
+    }
+
+    const { tokens } = await oAuth2Client.getToken(code);
+    
+    console.log('✅ Authentication successful!');
+    console.log('Refresh Token:', tokens.refresh_token);
+    console.log('Access Token:', tokens.access_token);
+    
+    res.send(`
+      <h1>✅ Authentication Successful!</h1>
+      <p><strong>Refresh Token:</strong> ${tokens.refresh_token}</p>
+      <p>Add this to your .env file as:</p>
+      <code>GOOGLE_REFRESH_TOKEN=${tokens.refresh_token}</code>
+      <p><a href="/">Return to app</a></p>
+    `);
+    
+  } catch (error) {
+    console.error('❌ Authentication failed:', error);
+    res.status(500).send(`
+      <h1>❌ Authentication Failed</h1>
+      <p>${error.message}</p>
+    `);
+  }
+});
+
 // email transporter setup
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
