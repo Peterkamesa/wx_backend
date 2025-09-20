@@ -134,8 +134,7 @@ app.post('/api/login', async (req, res) => {
         );
         
         res.json({ 
-            token,
-            redirectUrl: '/station-dashboard',
+            token, 
             station: { 
                 name: stationData.name, 
                 number: stationData.number 
@@ -465,9 +464,9 @@ app.get('/api/sheets/type/:sheetType', async (req, res) => {
 });
 
 // Get station-specific C/SHEET
-app.get('/api/sheets/csheet',  authenticate, async (req, res) => {
+app.get('/api/sheets/csheet', async (req, res) => {
   try {
-    const  station  = req.user.name;
+    const { station } = req.query;
     
     if (!station) {
       return res.status(400).json({ error: 'Station parameter is required' });
@@ -635,9 +634,9 @@ async function createNewSheetCopy(sheetType, station) {
 }
 
 // Get station-specific form626
-app.get('/api/sheets/form626', authenticate, async (req, res) => {
+app.get('/api/sheets/form626', async (req, res) => {
   try {
-    const  station  = req.user.name;
+    const { station } = req.query;
     
     if (!station) {
       return res.status(400).json({ error: 'Station parameter is required' });
@@ -674,9 +673,9 @@ app.get('/api/sheets/form626', authenticate, async (req, res) => {
 });
 
 // Get station-specific agro18 dekad
-app.get('/api/sheets/agro18_dek', authenticate, async (req, res) => {
+app.get('/api/sheets/agro18_dek', async (req, res) => {
   try {
-    const station = req.user.name;
+    const { station } = req.query;
     
     if (!station) {
       return res.status(400).json({ error: 'Station parameter is required' });
@@ -713,9 +712,9 @@ app.get('/api/sheets/agro18_dek', authenticate, async (req, res) => {
 });
 
 // Get station-specific form446
-app.get('/api/sheets/form446', authenticate, async (req, res) => {
+app.get('/api/sheets/form446', async (req, res) => {
   try {
-    const  station  = req.user.name;
+    const { station } = req.query;
     
     if (!station) {
       return res.status(400).json({ error: 'Station parameter is required' });
@@ -752,9 +751,9 @@ app.get('/api/sheets/form446', authenticate, async (req, res) => {
 });
 
 // Get station-specific WEATHER SUMMARY
-app.get('/api/sheets/wxsummary', authenticate, async (req, res) => {
+app.get('/api/sheets/wxsummary', async (req, res) => {
   try {
-    const  station  = req.user.name;
+    const { station } = req.query;
     
     if (!station) {
       return res.status(400).json({ error: 'Station parameter is required' });
@@ -791,9 +790,9 @@ app.get('/api/sheets/wxsummary', authenticate, async (req, res) => {
 });
 
 // Get station-specific RAINFALL CART
-app.get('/api/sheets/rainfallcart', authenticate, async (req, res) => {
+app.get('/api/sheets/rainfallcart', async (req, res) => {
   try {
-    const station  = req.user.name;
+    const { station } = req.query;
     
     if (!station) {
       return res.status(400).json({ error: 'Station parameter is required' });
@@ -829,51 +828,6 @@ app.get('/api/sheets/rainfallcart', authenticate, async (req, res) => {
   }
 });
 
-// Serve station dashboard page
-app.get('/station-dashboard', authenticate, (req, res) => {
-    // Check if user has station role
-    if (req.user.role !== 'station') {
-        return res.status(403).send('Access denied. Station role required.');
-    }
-    
-    // Serve the dashboard page with station info
-    res.sendFile(path.join(__dirname, 'station-dashboard.html'));
-});
-
-// Serve station-specific forms page
-app.get('/station-forms', authenticate, (req, res) => {
-    if (req.user.role !== 'station') {
-        return res.status(403).send('Access denied. Station role required.');
-    }
-    
-    res.sendFile(path.join(__dirname, 'station-forms.html'));
-});
-
-// API endpoint to get station details
-app.get('/api/station/details', authenticate, (req, res) => {
-    if (req.user.role !== 'station') {
-        return res.status(403).json({ error: 'Access denied' });
-    }
-    
-    // Find station in predefined list
-    const stationData = predefinedStations.find(s => s.name === req.user.name);
-    if (!stationData) {
-        return res.status(404).json({ error: 'Station not found' });
-    }
-    
-    res.json({
-        name: stationData.name,
-        number: stationData.number,
-        forms: [
-            { type: 'FORM626', name: 'FORM 626' },
-            { type: 'CSHEET', name: 'C/SHEET' },
-            { type: 'FORM446', name: 'FORM 446' },
-            { type: 'WX_SUMMARY', name: 'WX SUMMARY' },
-            { type: 'AGRO18_DEK', name: 'AGRO18 DEK' },
-            { type: 'RCART', name: 'RAINFALL CART' }
-        ]
-    });
-});
 
 
 //sending report via email
