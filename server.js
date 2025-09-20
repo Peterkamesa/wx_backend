@@ -97,151 +97,6 @@ app.use((req, res, next) => {
 // report models(report.js)
 const Report = require('./models/report');
 
-// Initialize OAuth2 client
-const oAuth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/oauth2callback'
-);
-
-// Set credentials if refresh token exists
-if (process.env.GOOGLE_REFRESH_TOKEN) {
-  oAuth2Client.setCredentials({
-    refresh_token: process.env.GOOGLE_REFRESH_TOKEN
-  });
-}
-
-// OAuth initiation endpoint
-app.get('/auth/google', (req, res) => {
-  const authUrl = oAuth2Client.generateAuthUrl({
-    access_type: 'offline',
-    scope: ['https://www.googleapis.com/auth/gmail.send'],
-    prompt: 'consent'
-  });
-  res.redirect(authUrl);
-});
-
-// OAuth callback endpoint
-app.get('/oauth2callback', async (req, res) => {
-  try {
-    const { code } = req.query;
-    
-    if (!code) {
-      return res.status(400).send('Authorization code missing');
-    }
-
-    const { tokens } = await oAuth2Client.getToken(code);
-    
-    console.log('✅ Authentication successful!');
-    console.log('Refresh Token:', tokens.refresh_token);
-    console.log('Access Token:', tokens.access_token);
-    
-    // Store the refresh token in credentials
-    oAuth2Client.setCredentials(tokens);
-    
-    res.send(`
-      <h1>✅ Authentication Successful!</h1>
-      <p><strong>Refresh Token:</strong> ${tokens.refresh_token}</p>
-      <p>Add this to your .env file as:</p>
-      <code>GOOGLE_REFRESH_TOKEN=${tokens.refresh_token}</code>
-      <p><a href="/">Return to app</a></p>
-    `);
-    
-  } catch (error) {
-    console.error('❌ Authentication failed:', error);
-    res.status(500).send(`
-      <h1>❌ Authentication Failed</h1>
-      <p>${error.message}</p>
-    `);
-  }
-});
-
-// Function to create OAuth2 transporter
-const createOAuthTransporter = async () => {
-  try {
-    // Get access token
-    const accessToken = await oAuth2Client.getAccessToken();
-    
-    if (!accessToken.token) {
-      throw new Error('Failed to get access token');
-    }
-
-    // Create and return transporter
-    return nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        type: 'OAuth2',
-        user: process.env.EMAIL_USER,
-        clientId: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        refreshToken: process.env.GOOGLE_REFRESH_TOKEN,
-        accessToken: accessToken.token,
-      },
-    });
-  } catch (error) {
-    console.error('Error creating OAuth transporter:', error);
-    throw error;
-  }
-};
-
-// Fallback SMTP transporter (keep your original as backup)
-const smtpTransporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-  tls: {
-    rejectUnauthorized: true
-  },
-  connectionTimeout: 30000,
-  greetingTimeout: 30000,
-  socketTimeout: 30000
-});
-
-// sending report via email
-app.post('/api/send-report', async (req, res) => {
-  const { to, subject, content } = req.body;
-  
-  try {
-    let transporter;
-    
-    // Try OAuth2 first if refresh token is available
-    if (process.env.GOOGLE_REFRESH_TOKEN) {
-      try {
-        transporter = await createOAuthTransporter();
-        console.log('Using OAuth2 transporter');
-      } catch (oauthError) {
-        console.warn('OAuth2 failed, falling back to SMTP:', oauthError.message);
-        transporter = smtpTransporter;
-      }
-    } else {
-      // Use SMTP if no refresh token
-      transporter = smtpTransporter;
-      console.log('Using SMTP transporter (no OAuth2 token available)');
-    }
-
-    await transporter.sendMail({
-      from: `"Weather System" <${process.env.EMAIL_USER}>`,
-      to,
-      subject,
-      text: content,
-      html: `<pre>${content}</pre>`,
-    });
-
-    res.json({ success: true, message: 'Report sent successfully' });
-  } catch (error) {
-    console.error('Error sending email:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error sending report', 
-      error: error.message 
-    });
-  }
-});
-
 // Station model (no need to store in DB since we have fixed stations)
 const predefinedStations = [
     {name: "Mab-Met", number: "63739", password: "mab-met63739"},
@@ -279,7 +134,8 @@ app.post('/api/login', async (req, res) => {
         );
         
         res.json({ 
-            token, 
+            token,
+            redirectUrl: '/station-dashboard',
             station: { 
                 name: stationData.name, 
                 number: stationData.number 
@@ -609,9 +465,9 @@ app.get('/api/sheets/type/:sheetType', async (req, res) => {
 });
 
 // Get station-specific C/SHEET
-app.get('/api/sheets/csheet', async (req, res) => {
+app.get('/api/sheets/csheet',  authenticate, async (req, res) => {
   try {
-    const { station } = req.query;
+    const  station  = req.user.name;
     
     if (!station) {
       return res.status(400).json({ error: 'Station parameter is required' });
@@ -779,9 +635,9 @@ async function createNewSheetCopy(sheetType, station) {
 }
 
 // Get station-specific form626
-app.get('/api/sheets/form626', async (req, res) => {
+app.get('/api/sheets/form626', authenticate, async (req, res) => {
   try {
-    const { station } = req.query;
+    const  station  = req.user.name;
     
     if (!station) {
       return res.status(400).json({ error: 'Station parameter is required' });
@@ -818,9 +674,9 @@ app.get('/api/sheets/form626', async (req, res) => {
 });
 
 // Get station-specific agro18 dekad
-app.get('/api/sheets/agro18_dek', async (req, res) => {
+app.get('/api/sheets/agro18_dek', authenticate, async (req, res) => {
   try {
-    const { station } = req.query;
+    const station = req.user.name;
     
     if (!station) {
       return res.status(400).json({ error: 'Station parameter is required' });
@@ -857,9 +713,9 @@ app.get('/api/sheets/agro18_dek', async (req, res) => {
 });
 
 // Get station-specific form446
-app.get('/api/sheets/form446', async (req, res) => {
+app.get('/api/sheets/form446', authenticate, async (req, res) => {
   try {
-    const { station } = req.query;
+    const  station  = req.user.name;
     
     if (!station) {
       return res.status(400).json({ error: 'Station parameter is required' });
@@ -896,9 +752,9 @@ app.get('/api/sheets/form446', async (req, res) => {
 });
 
 // Get station-specific WEATHER SUMMARY
-app.get('/api/sheets/wxsummary', async (req, res) => {
+app.get('/api/sheets/wxsummary', authenticate, async (req, res) => {
   try {
-    const { station } = req.query;
+    const  station  = req.user.name;
     
     if (!station) {
       return res.status(400).json({ error: 'Station parameter is required' });
@@ -935,9 +791,9 @@ app.get('/api/sheets/wxsummary', async (req, res) => {
 });
 
 // Get station-specific RAINFALL CART
-app.get('/api/sheets/rainfallcart', async (req, res) => {
+app.get('/api/sheets/rainfallcart', authenticate, async (req, res) => {
   try {
-    const { station } = req.query;
+    const station  = req.user.name;
     
     if (!station) {
       return res.status(400).json({ error: 'Station parameter is required' });
@@ -971,6 +827,52 @@ app.get('/api/sheets/rainfallcart', async (req, res) => {
       details: error.message 
     });
   }
+});
+
+// Serve station dashboard page
+app.get('/station-dashboard', authenticate, (req, res) => {
+    // Check if user has station role
+    if (req.user.role !== 'station') {
+        return res.status(403).send('Access denied. Station role required.');
+    }
+    
+    // Serve the dashboard page with station info
+    res.sendFile(path.join(__dirname, 'station-dashboard.html'));
+});
+
+// Serve station-specific forms page
+app.get('/station-forms', authenticate, (req, res) => {
+    if (req.user.role !== 'station') {
+        return res.status(403).send('Access denied. Station role required.');
+    }
+    
+    res.sendFile(path.join(__dirname, 'station-forms.html'));
+});
+
+// API endpoint to get station details
+app.get('/api/station/details', authenticate, (req, res) => {
+    if (req.user.role !== 'station') {
+        return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Find station in predefined list
+    const stationData = predefinedStations.find(s => s.name === req.user.name);
+    if (!stationData) {
+        return res.status(404).json({ error: 'Station not found' });
+    }
+    
+    res.json({
+        name: stationData.name,
+        number: stationData.number,
+        forms: [
+            { type: 'FORM626', name: 'FORM 626' },
+            { type: 'CSHEET', name: 'C/SHEET' },
+            { type: 'FORM446', name: 'FORM 446' },
+            { type: 'WX_SUMMARY', name: 'WX SUMMARY' },
+            { type: 'AGRO18_DEK', name: 'AGRO18 DEK' },
+            { type: 'RCART', name: 'RAINFALL CART' }
+        ]
+    });
 });
 
 
@@ -1020,6 +922,152 @@ app.post('/api/send-report', async (req, res) => {
     });
   }
 });*/
+
+// Initialize OAuth2 client
+const oAuth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/oauth2callback'
+);
+
+// Set credentials if refresh token exists
+if (process.env.GOOGLE_REFRESH_TOKEN) {
+  oAuth2Client.setCredentials({
+    refresh_token: process.env.GOOGLE_REFRESH_TOKEN
+  });
+}
+
+// OAuth initiation endpoint
+app.get('/auth/google', (req, res) => {
+  const authUrl = oAuth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: ['https://www.googleapis.com/auth/gmail.send'],
+    prompt: 'consent'
+  });
+  res.redirect(authUrl);
+});
+
+// OAuth callback endpoint
+app.get('/oauth2callback', async (req, res) => {
+  try {
+    const { code } = req.query;
+    
+    if (!code) {
+      return res.status(400).send('Authorization code missing');
+    }
+
+    const { tokens } = await oAuth2Client.getToken(code);
+    
+    console.log('✅ Authentication successful!');
+    console.log('Refresh Token:', tokens.refresh_token);
+    console.log('Access Token:', tokens.access_token);
+    
+    // Store the refresh token in credentials
+    oAuth2Client.setCredentials(tokens);
+    
+    res.send(`
+      <h1>✅ Authentication Successful!</h1>
+      <p><strong>Refresh Token:</strong> ${tokens.refresh_token}</p>
+      <p>Add this to your .env file as:</p>
+      <code>GOOGLE_REFRESH_TOKEN=${tokens.refresh_token}</code>
+      <p><a href="/">Return to app</a></p>
+    `);
+    
+  } catch (error) {
+    console.error('❌ Authentication failed:', error);
+    res.status(500).send(`
+      <h1>❌ Authentication Failed</h1>
+      <p>${error.message}</p>
+    `);
+  }
+});
+
+// Function to create OAuth2 transporter
+const createOAuthTransporter = async () => {
+  try {
+    // Get access token
+    const accessToken = await oAuth2Client.getAccessToken();
+    
+    if (!accessToken.token) {
+      throw new Error('Failed to get access token');
+    }
+
+    // Create and return transporter
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        type: 'OAuth2',
+        user: process.env.EMAIL_USER,
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        refreshToken: process.env.GOOGLE_REFRESH_TOKEN,
+        accessToken: accessToken.token,
+      },
+    });
+  } catch (error) {
+    console.error('Error creating OAuth transporter:', error);
+    throw error;
+  }
+};
+
+// Fallback SMTP transporter (keep your original as backup)
+const smtpTransporter = nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  },
+  tls: {
+    rejectUnauthorized: true
+  },
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 30000
+});
+
+// sending report via email
+app.post('/api/send-report', async (req, res) => {
+  const { to, subject, content } = req.body;
+  
+  try {
+    let transporter;
+    
+    // Try OAuth2 first if refresh token is available
+    if (process.env.GOOGLE_REFRESH_TOKEN) {
+      try {
+        transporter = await createOAuthTransporter();
+        console.log('Using OAuth2 transporter');
+      } catch (oauthError) {
+        console.warn('OAuth2 failed, falling back to SMTP:', oauthError.message);
+        transporter = smtpTransporter;
+      }
+    } else {
+      // Use SMTP if no refresh token
+      transporter = smtpTransporter;
+      console.log('Using SMTP transporter (no OAuth2 token available)');
+    }
+
+    await transporter.sendMail({
+      from: `"Weather System" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      text: content,
+      html: `<pre>${content}</pre>`,
+    });
+
+    res.json({ success: true, message: 'Report sent successfully' });
+  } catch (error) {
+    console.error('Error sending email:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error sending report', 
+      error: error.message 
+    });
+  }
+});
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
