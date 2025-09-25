@@ -286,6 +286,17 @@ app.get('/api/reports/TAF', async (req, res) => {
     }
 });
 
+// GET latest taf report only
+app.get('/api/reports/TAF/latest', async (req, res) => {
+    try {
+        const report = await Report.findOne({ type: 'TAF' }).sort({ createdAt: -1 });
+        if (!report) return res.json({ message: "No TAF found" });
+        res.json(report);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // GET all METAR reports
 app.get('/api/reports/METAR', async (req, res) => {
     try {
