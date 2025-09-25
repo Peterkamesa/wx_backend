@@ -284,6 +284,18 @@ app.get('/api/reports/METAR', async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 });
+
+// GET latest METAR report only
+app.get('/api/reports/METAR/latest', async (req, res) => {
+    try {
+        const report = await Report.findOne({ type: 'METAR' }).sort({ createdAt: -1 });
+        if (!report) return res.json({ message: "No METAR found" });
+        res.json(report);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // GET all synop reports
 app.get('/api/reports/SYNOP', async (req, res) => {
     try {
