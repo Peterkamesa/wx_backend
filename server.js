@@ -10,6 +10,7 @@ const morgan = require('morgan');
 const jwt = require('jsonwebtoken');
 const { google } = require('googleapis');
 const sgMail = require('@sendgrid/mail');
+const Report = require('./models/report');
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -40,19 +41,6 @@ requiredEnvVars.forEach(varName => {
   }
 });
 
-let sheetsAuth = null;
-try {
-  if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
-    sheetsAuth = new google.auth.JWT(
-      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      null,
-      process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n') || process.env.GOOGLE_PRIVATE_KEY,
-      ['https://www.googleapis.com/auth/drive']
-    );
-  }
-} catch (error) {
-  console.error('Google Auth initialization failed:', error);
-}
 // Security Middleware
 app.use(helmet());
 
@@ -94,8 +82,6 @@ app.use((req, res, next) => {
   }
   next();
 });
-// report models(report.js)
-const Report = require('./models/report');
 
 // Station model (no need to store in DB since we have fixed stations)
 const predefinedStations = [
@@ -104,6 +90,20 @@ const predefinedStations = [
     {name: "JKIA", number: "63740", password: "jkia63740"},
     {name: "Wilson", number: "63742", password: "wilson63742"}
 ];
+
+let sheetsAuth = null;
+try {
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
+    sheetsAuth = new google.auth.JWT(
+      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      null,
+      process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n') || process.env.GOOGLE_PRIVATE_KEY,
+      ['https://www.googleapis.com/auth/drive']
+    );
+  }
+} catch (error) {
+  console.error('Google Auth initialization failed:', error);
+}
 
 // Modified login route
 app.post('/api/login', async (req, res) => {
@@ -853,7 +853,6 @@ app.post('/api/send-report', async (req, res) => {
 */
 
 //sending report via email USING SENDGRID
-/*
 app.post('/api/send-report', async (req, res) => {
   try {
     const { to, subject, content } = req.body;
@@ -875,9 +874,10 @@ app.post('/api/send-report', async (req, res) => {
       message: 'Error sending report'
     });
   }
-});*/
+});
 
 // Initialize OAuth2 client
+/*
 const oAuth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
@@ -963,6 +963,7 @@ const createOAuthTransporter = async () => {
     throw error;
   }
 };
+*/
 
 // Fallback SMTP transporter (keep your original as backup)
 const smtpTransporter = nodemailer.createTransport({
@@ -982,6 +983,7 @@ const smtpTransporter = nodemailer.createTransport({
 });
 
 // sending report via email
+/*
 app.post('/api/send-report', async (req, res) => {
   const { to, subject, content } = req.body;
   
@@ -1020,7 +1022,7 @@ app.post('/api/send-report', async (req, res) => {
       error: error.message 
     });
   }
-});
+});*/
 
 
 const PORT = process.env.PORT || 3000;
