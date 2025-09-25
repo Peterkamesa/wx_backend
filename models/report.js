@@ -10,7 +10,7 @@ const reportSchema = new mongoose.Schema({
     type: {
         type: String,
         required: true,
-        enum: ['METAR', 'SYNOP', 'ACTUALS', 'CONTACT'],
+        enum: ['METAR', 'SYNOP', 'ACTUALS', 'CONTACT', 'TAF'],
         uppercase: true
     },
     createdAt: {

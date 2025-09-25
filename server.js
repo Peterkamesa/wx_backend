@@ -275,6 +275,17 @@ app.post('/api/sheets', authenticateApiKey, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// GET all TAF reports
+app.get('/api/reports/TAF', async (req, res) => {
+    try {
+        const reports = await Report.find({ type: 'TAF' }).sort({ createdAt: -1 });
+        res.json(reports);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // GET all METAR reports
 app.get('/api/reports/METAR', async (req, res) => {
     try {
