@@ -216,7 +216,7 @@ app.post('/api/contact', async (req, res) => {
       `
     };
 
-    await transporter.sendMail(mailOptions);
+    await sgMail.send(mailOptions);
 
         
         res.status(201).json({ 
