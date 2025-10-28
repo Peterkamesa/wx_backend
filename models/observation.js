@@ -1,0 +1,37 @@
+const mongoose = require('mongoose');
+
+const observationSchema = new mongoose.Schema({
+  time: String,
+  date: String,
+  low_type: String,
+  low_oktas: String,
+  low_height: String,
+  low_cl: String,
+  med_type: String,
+  med_oktas: String,
+  med_height: String,
+  med_cl: String,
+  high_type: String,
+  high_oktas: String,
+  high_height: String,
+  high_cl: String,
+  alidade: String,
+  rainfall: String,
+  w_rf: String,
+  dry_bulb: String,
+  wet_bulb: String,
+  max_temp: String,
+  min_temp: String,
+  g_min: String,
+  weather: String,
+  visibility: String,
+  wind: String,
+  pr_read: String,
+  correction: String,
+  mslp: String,
+  evap_pan: String,
+  wind_run: String,
+  gunn_bellani: String,
+});
+
+module.exports = mongoose.model("Observation", observationSchema);

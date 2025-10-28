@@ -10,6 +10,7 @@ const morgan = require('morgan');
 const jwt = require('jsonwebtoken');
 const { google } = require('googleapis');
 const sgMail = require('@sendgrid/mail');
+const Observation = require("./models/Observation");
 const Report = require('./models/report');
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -1058,6 +1059,29 @@ app.post('/api/send-report', async (req, res) => {
   }
 });*/
 
+// Fetch latest observation
+app.get("/api/latest-observation", async (req, res) => {
+  try {
+    const latestObservation = await Observation.findOne().sort({ _id: -1 });
+    if (!latestObservation) {
+      return res.status(404).json({ message: "No observation found" });
+    }
+    res.json(latestObservation);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching latest observation", error });
+  }
+});
+
+// Save endpoint
+app.post("/save-observation", async (req, res) => {
+  try {
+    const newObservation = new Observation(req.body);
+    await newObservation.save();
+    res.status(200).send("Observation saved successfully!");
+  } catch (err) {
+    res.status(500).send("Error saving observation: " + err.message);
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

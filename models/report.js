@@ -72,6 +72,12 @@ const reportSchema = new mongoose.Schema({
         default: null
     },
     
+      // 🔗 Link to Observation document
+  observationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Observation",
+    default: null
+  },
     // Add these missing fields properly
     ipAddress: {
         type: String,
