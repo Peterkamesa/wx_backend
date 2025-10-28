@@ -10,7 +10,7 @@ const morgan = require('morgan');
 const jwt = require('jsonwebtoken');
 const { google } = require('googleapis');
 const sgMail = require('@sendgrid/mail');
-const Observation = require("./models/Observation");
+const Observation = require("./models/observation");
 const Report = require('./models/report');
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
