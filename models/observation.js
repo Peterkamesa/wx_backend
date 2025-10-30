@@ -18,6 +18,7 @@ const observationSchema = new mongoose.Schema({
   alidade: String,
   rainfall: String,
   w_rf: String,
+  r_h: String,
   dry_bulb: String,
   wet_bulb: String,
   max_temp: String,
