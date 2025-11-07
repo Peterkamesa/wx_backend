@@ -1060,7 +1060,7 @@ app.post('/api/send-report', async (req, res) => {
 });*/
 
 // Fetch latest observation
-app.get("/api/latest-observation", async (req, res) => {
+/*app.get("/api/latest-observation", async (req, res) => {
   try {
     const latestObservation = await Observation.findOne().sort({ _id: -1 });
     if (!latestObservation) {
@@ -1070,7 +1070,43 @@ app.get("/api/latest-observation", async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "Error fetching latest observation", error });
   }
+});*/
+
+// Fetch latest observation and include yesterday’s same-hour pressure
+app.get("/api/latest-observation", async (req, res) => {
+  try {
+    // Get latest observation
+    const latestObservation = await Observation.findOne().sort({ _id: -1 });
+
+    if (!latestObservation) {
+      return res.status(404).json({ message: "No observation found" });
+    }
+
+    // Extract date and time
+    const obsDate = new Date(`${latestObservation.date}T${latestObservation.time}:00Z`);
+    const yesterday = new Date(obsDate);
+    yesterday.setUTCDate(obsDate.getUTCDate() - 1);
+
+    const yDate = yesterday.toISOString().split("T")[0];
+    const hour = String(obsDate.getUTCHours()).padStart(2, "0");
+
+    // Find yesterday’s observation for the same hour
+    const yestObs = await Observation.findOne({
+      date: yDate,
+      time: { $regex: `^${hour}` } // e.g. finds "12:00"
+    });
+
+    // Add yesterday’s pressure reading (if found)
+    const data = latestObservation.toObject();
+    data.yesterday_pr = yestObs ? yestObs.pr_read : null;
+
+    res.json(data);
+  } catch (error) {
+    console.error("Error fetching latest observation:", error);
+    res.status(500).json({ message: "Error fetching latest observation", error });
+  }
 });
+
 
 // Save endpoint
 app.post("/save-observation", async (req, res) => {
