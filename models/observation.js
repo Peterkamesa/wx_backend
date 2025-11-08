@@ -38,6 +38,7 @@ const observationSchema = new mongoose.Schema({
   pr_read: String,
   correction: String,
   qnh: String,
+  qne: String,
   r_wx: String,
   evap_pan: String,
   wind_run: String,
