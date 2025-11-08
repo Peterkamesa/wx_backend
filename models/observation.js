@@ -31,6 +31,8 @@ const observationSchema = new mongoose.Schema({
   min_temp: String,
   g_min: String,
   weather: String,
+  ww: String,
+  w1w2: String,
   visibility: String,
   wind: String,
   pr_read: String,
