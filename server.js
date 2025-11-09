@@ -1119,6 +1119,32 @@ app.post("/save-observation", async (req, res) => {
   }
 });
 
+// Endpoint to get yesterday's wind_run
+app.get("/api/getYesterdayWindRun", async (req, res) => {
+  try {
+    // Get today's date and compute yesterday
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    // Format to YYYY-MM-DD (assuming your date is saved like that)
+    const yDate = yesterday.toISOString().split("T")[0];
+
+    const obs = await Observation.findOne({ date: yDate })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!obs || !obs.wind_run) {
+      return res.json({ wind_run: "0.0" }); // default fallback
+    }
+
+    res.json({ wind_run: obs.wind_run });
+  } catch (err) {
+    console.error("Error fetching yesterday wind_run:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
